@@ -11,7 +11,7 @@ import {
 	MoveCategoryBody,
 	SearchQuery,
 	SearchRes,
-} from "@/app/api/[[...route]]/model/link";
+} from "@/app/api/[[...route]]/model/model";
 import {
 	authAdmin,
 	db,
@@ -100,9 +100,6 @@ const createLinkRoute = createRoute({
 	description:
 		"URLを送信すると OGP を取得して保存します。既存リンクがある場合は既存データを返し、存在しなければ新規作成します。",
 	request: {
-		headers: z.object({
-			authorization: z.string().describe("Firebase ID トークン"),
-		}),
 		body: {
 			required: true,
 			content: {
@@ -110,6 +107,7 @@ const createLinkRoute = createRoute({
 			},
 		},
 	},
+	security: [{ bearerAuth: [] }],
 	responses: {
 		200: {
 			description: "既存リンクを返却",
@@ -235,6 +233,7 @@ const listLinksRoute = createRoute({
 		headers: z.object({ authorization: z.string() }),
 		query: ListLinksQuery,
 	},
+	security: [{ bearerAuth: [] }],
 	responses: {
 		200: {
 			description: "一覧を返却",
@@ -336,6 +335,7 @@ const getLinkRoute = createRoute({
 		headers: z.object({ authorization: z.string() }),
 		params: z.object({ id: z.string().describe("リンクのID") }),
 	},
+	security: [{ bearerAuth: [] }],
 	responses: {
 		200: {
 			description: "詳細情報",
@@ -417,6 +417,7 @@ const moveRoute = createRoute({
 			content: { "application/json": { schema: MoveCategoryBody } },
 		},
 	},
+	security: [{ bearerAuth: [] }],
 	responses: {
 		200: {
 			description: "変更後のリンクを返却",
@@ -513,6 +514,7 @@ const listCatsRoute = createRoute({
 	summary: "カテゴリ一覧取得",
 	description: "利用可能なカテゴリの一覧と、それぞれのリンク件数を返します。",
 	request: { headers: z.object({ authorization: z.string() }) },
+	security: [{ bearerAuth: [] }],
 	responses: {
 		200: {
 			description: "カテゴリ一覧",
@@ -554,6 +556,7 @@ const createCatRoute = createRoute({
 			content: { "application/json": { schema: CategoryCreateBody } },
 		},
 	},
+	security: [{ bearerAuth: [] }],
 	responses: {
 		201: {
 			description: "作成に成功",
@@ -607,6 +610,7 @@ const searchRoute = createRoute({
 		headers: z.object({ authorization: z.string() }),
 		query: SearchQuery,
 	},
+	security: [{ bearerAuth: [] }],
 	responses: {
 		200: {
 			description: "検索結果",

@@ -90,7 +90,7 @@ export function AddButton({ onSubmit }: AddButtonProps) {
 
 			{/* URL追加ダイアログ */}
 			<Dialog open={open} onOpenChange={handleDialogOpenChange}>
-				<DialogContent className="w-[90vw] max-w-md mx-auto rounded-lg">
+				<DialogContent className="w-[90vw] max-w-md mx-auto rounded-lg fixed top-4 sm:top-8 left-1/2 transform -translate-x-1/2 -translate-y-0">
 					<DialogHeader>
 						<DialogTitle>✨AIでURLを追加</DialogTitle>
 						<DialogDescription>

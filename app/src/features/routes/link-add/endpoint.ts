@@ -22,7 +22,7 @@ export const saveLink = async (url: string, user: User): Promise<LinkType> => {
 			headers: {
 				authorization: token,
 			},
-		}
+		},
 	);
 
 	if (!response.ok) {

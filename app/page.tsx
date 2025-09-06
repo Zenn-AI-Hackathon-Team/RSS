@@ -1,9 +1,9 @@
 "use client";
 
 import CategoryContainer from "@/app/src/features/routes/category/components/CategoryContainer";
-import { AddButton } from "@/app/src/features/routes/home/components/AddButton";
-import { SearchBox } from "@/app/src/features/routes/home/components/SearchBox";
-import { useHomePage } from "@/app/src/features/routes/home/hooks";
+import { AddButton } from "@/app/src/features/routes/link-add/components/AddButton";
+import { useHomePage } from "@/app/src/features/routes/link-add/hooks";
+import { SearchBox } from "@/app/src/features/routes/search/components/SearchBox";
 import { useAuth } from "@/app/src/providers/AuthProvider";
 import InboxFetcher from "./src/features/routes/inbox/components/InboxFetcher";
 

@@ -12,7 +12,6 @@ const InboxContainer: React.FC = () => {
       title: "Web3時代の新しいビジネスモデル考察",
       date: "2025-09-05",
       category: "Web3",
-      tags: ["web3", "blockchain"],
       color: "bg-orange-500",
       icon: "blocks",
     },
@@ -21,7 +20,6 @@ const InboxContainer: React.FC = () => {
       title: "知らないと損する、次世代AIツールの活用法",
       date: "2025-09-04",
       category: "AI",
-      tags: ["ai", "productivity"],
       color: "bg-purple-500",
       icon: "brain",
     },
@@ -30,7 +28,6 @@ const InboxContainer: React.FC = () => {
       title: "スタートアップの資金調達戦略2025",
       date: "2025-09-03",
       category: "Startup",
-      tags: ["funding", "startup"],
       color: "bg-blue-500",
       icon: "trending",
     },
@@ -39,7 +36,6 @@ const InboxContainer: React.FC = () => {
       title: "リモートワーク時代のチームマネジメント",
       date: "2025-09-02",
       category: "Management",
-      tags: ["remote", "team"],
       color: "bg-green-500",
       icon: "users",
     },
@@ -72,7 +68,7 @@ const InboxContainer: React.FC = () => {
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto p-6 bg-gray-900 min-h-screen">
+    <div className="w-full max-w-4xl mx-auto pt-6 min-h-screen">
       <InboxHeader sortBy={sortBy} onSortChange={handleSort} />
       <InboxList items={items} />
     </div>

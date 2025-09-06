@@ -1,6 +1,6 @@
 import type { User } from "firebase/auth";
 import type { z } from "zod";
-import type { Link } from "@/app/api/[[...route]]/model/link";
+import type { Link } from "@/app/api/[[...route]]/model/model";
 import { client } from "@/app/src/client/api";
 import type { CategoryItem } from "@/app/src/types/categoryItem/types";
 import type { PostItem } from "@/app/src/types/postItem/types";
@@ -16,12 +16,14 @@ type LinkType = z.infer<typeof Link>;
 export const saveLink = async (url: string, user: User): Promise<LinkType> => {
 	const token = await user.getIdToken();
 
-	const response = await client.api.links.$post({
-		json: { url },
-		header: {
-			authorization: token,
-		},
-	});
+	const response = await client.api.links.$post(
+		{ json: { url } },
+		{
+			headers: {
+				authorization: token,
+			},
+		}
+	);
 
 	if (!response.ok) {
 		const errorData = await response.json();

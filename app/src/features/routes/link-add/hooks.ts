@@ -130,7 +130,7 @@ export const useNavigation = () => {
 	const router = useRouter();
 
 	const handleSearchResultClick = (postId: string) => {
-		router.push(`/post/${postId}`);
+		router.push(`/link/${postId}`);
 	};
 
 	const handleCategoryClick = (categoryId: string) => {

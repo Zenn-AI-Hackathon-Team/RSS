@@ -1,4 +1,6 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useAuth } from "@/app/src/providers/AuthProvider";
+import { searchLinks } from "./endpoint";
 import type {
 	UseSearchDialogReturn,
 	UseSearchProps,
@@ -14,22 +16,50 @@ export const useSearch = ({
 	categories,
 	query,
 }: UseSearchProps): UseSearchReturn => {
-	const searchResults = useMemo(() => {
-		if (!query.trim()) return [];
+	// posts/categories は後方互換のため受け取るが、検索はAPIで実施
+	const { user } = useAuth();
+	const [searchResults, setSearchResults] = useState<
+		UseSearchReturn["searchResults"]
+	>([]);
+	const q = (query || "").trim();
+	const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
-		const lowerCaseQuery = query.toLowerCase().trim();
-
-		return posts.filter((post) => {
-			const category = categories.find((c) => c.id === post.categoryId);
-			const postText = `${post.title} ${category?.name || ""}`.toLowerCase();
-			return postText.includes(lowerCaseQuery);
-		});
-	}, [query, posts, categories]);
+	useEffect(() => {
+		if (debounceRef.current) clearTimeout(debounceRef.current);
+		if (!q) {
+			setSearchResults([]);
+			return;
+		}
+		// 文字数しきい値（1文字以上で検索）とデバウンス
+		debounceRef.current = setTimeout(async () => {
+			try {
+				if (!user) {
+					setSearchResults([]);
+					return;
+				}
+				const res = await searchLinks({ q, limit: 20 }, user);
+				setSearchResults(res.items);
+			} catch {
+				// フェイルセーフ: ローカル簡易フィルタにフォールバック
+				const lower = q.toLowerCase();
+				const filtered = posts.filter((post) => {
+					const cat = categories.find((c) => c.id === post.categoryId);
+					const text = `${post.title} ${cat?.name || ""}`.toLowerCase();
+					return text.includes(lower);
+				});
+				setSearchResults(filtered);
+			}
+		}, 300);
+		return () => {
+			if (debounceRef.current) clearTimeout(debounceRef.current);
+		};
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [q, user, posts, categories]);
 
 	return {
 		searchResults,
 		hasResults: searchResults.length > 0,
-		isEmpty: query.trim() !== "" && searchResults.length === 0,
+		isEmpty: q !== "" && searchResults.length === 0,
 	};
 };
 

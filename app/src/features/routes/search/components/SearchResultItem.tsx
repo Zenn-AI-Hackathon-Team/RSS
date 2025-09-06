@@ -1,4 +1,4 @@
-import Image from "next/image";
+import SmartImage from "@/app/src/components/SmartImage";
 import { SEARCH_CONFIG } from "../constants";
 import type { SearchResultItemProps } from "../types";
 
@@ -8,20 +8,20 @@ import type { SearchResultItemProps } from "../types";
 export const SearchResultItem = ({ post, onClick }: SearchResultItemProps) => (
 	<button
 		onClick={onClick}
-		className="flex items-center p-2 space-x-4 rounded-lg cursor-pointer transition-colors hover:bg-slate-50 w-full text-left focus:outline-none focus:ring-2 focus:ring-blue-500"
+		className="flex items-center space-x-4 hover:bg-slate-50 p-2 rounded-md focus:ring-2 focus:ring-blue-500 w-full text-left transition-colors cursor-pointer focus:outline-none"
 		type="button"
 		aria-label={`${post.title}${SEARCH_CONFIG.ARIA_LABELS.SELECT_RESULT}`}
 	>
-		<Image
+		<SmartImage
 			src={post.thumbnail}
 			alt={post.title}
 			width={56}
 			height={56}
-			className="flex-shrink-0 object-cover w-14 h-14 rounded-md bg-slate-200"
+			className="flex-shrink-0 bg-slate-200 rounded-[20px] w-14 h-14 object-cover"
 		/>
 		<div className="overflow-hidden">
-			<p className="font-semibold truncate text-slate-800">{post.title}</p>
-			<p className="text-sm text-slate-500">{post.savedDate}</p>
+			<p className="font-semibold text-slate-800 truncate">{post.title}</p>
+			<p className="text-slate-500 text-sm">{post.savedDate}</p>
 		</div>
 	</button>
 );

@@ -12,6 +12,12 @@ import {
 	SearchQuery,
 	SearchRes,
 } from "@/app/api/[[...route]]/model/link";
+import {
+	authAdmin,
+	db,
+	serverTimestamp,
+	type Timestamp,
+} from "@/lib/firebaseAdmin";
 
 /* =========================
  * Helpers
@@ -20,7 +26,50 @@ async function requireUid(authorization?: string): Promise<string> {
 	if (!authorization?.startsWith("Bearer ")) {
 		throw new Error("UNAUTHORIZED");
 	}
-	return "demo-uid"; // TODO: Firebase Admin verifyIdToken
+	const token = authorization.slice("Bearer ".length).trim();
+	try {
+		const decoded = await authAdmin.verifyIdToken(token);
+		return decoded.uid;
+	} catch {
+		throw new Error("UNAUTHORIZED");
+	}
+}
+
+// Simple URL normalization: lower-case host, drop common tracking params, trim trailing slash (except root)
+function normalizeUrl(raw: string): string {
+	try {
+		const u = new URL(raw);
+		u.hostname = u.hostname.toLowerCase();
+		const toDelete = [
+			"utm_source",
+			"utm_medium",
+			"utm_campaign",
+			"utm_term",
+			"utm_content",
+			"fbclid",
+			"gclid",
+			"ref",
+		];
+		for (const key of toDelete) u.searchParams.delete(key);
+		// remove empty search
+		if (u.searchParams.toString() === "") u.search = "";
+		// remove trailing slash if not root
+		if (u.pathname.endsWith("/") && u.pathname !== "/") {
+			u.pathname = u.pathname.replace(/\/+$/, "");
+		}
+		return u.toString();
+	} catch {
+		return raw;
+	}
+}
+
+function normalizeCategoryName(raw: string): {
+	name: string;
+	nameLower: string;
+} {
+	const name = raw.trim().replace(/\s+/g, " ");
+	const nameLower = name.toLowerCase();
+	return { name, nameLower };
 }
 
 /* =========================
@@ -85,36 +134,88 @@ const createLinkHandler: RouteHandler<typeof createLinkRoute> = async (c) => {
 	try {
 		const uid = await requireUid(c.req.header("authorization") ?? undefined);
 		const { url } = await c.req.json<{ url: string }>();
+		const normalizedUrl = normalizeUrl(url);
 
-		// TODO: URL 正規化（utm除去・小文字化など）
-		const normalizedUrl = url;
+		const linksRef = db.collection("users").doc(uid).collection("links");
 
-		// TODO: Firestore lookup (uid, normalizedUrl)
-		const existing = null; // 既存が見つかったらオブジェクトにする
-
-		if (existing) {
-			// 既存があれば 200
-			return c.json(existing, 200);
+		// 既存確認
+		const snap = await linksRef
+			.where("url", "==", normalizedUrl)
+			.limit(1)
+			.get();
+		if (!snap.empty) {
+			const doc = snap.docs[0];
+			const data = doc.data() as {
+				url: string;
+				title: string | null;
+				description: string | null;
+				imageUrl: string | null;
+				categoryId: string | null;
+				provider?: "youtube" | "x" | "instagram" | "generic";
+				fetchStatus?: "ok" | "partial" | "failed";
+				createdAt?: Timestamp;
+				updatedAt?: Timestamp;
+			};
+			return c.json(
+				{
+					id: doc.id,
+					url: data.url,
+					title: data.title ?? null,
+					description: data.description ?? null,
+					imageUrl: data.imageUrl ?? null,
+					categoryId: data.categoryId ?? null,
+					provider: data.provider ?? "generic",
+					fetchStatus: data.fetchStatus ?? "ok",
+					createdAt: data.createdAt
+						? data.createdAt.toDate().toISOString()
+						: undefined,
+					updatedAt: data.updatedAt
+						? data.updatedAt.toDate().toISOString()
+						: undefined,
+				},
+				200,
+			);
 		}
 
-		// 新規作成フロー
-		// 1. OGP をサーバーで取得 (title, description, imageUrl)
-		// 2. AI分類 → categoryId（信頼度低ければ null）
-		// 3. Firestore 保存
-		const created = {
-			id: "link_123",
-			url,
-			title: "Example Title",
+		// 新規作成
+		const newDocRef = await linksRef.add({
+			url: normalizedUrl,
+			title: null,
 			description: null,
 			imageUrl: null,
 			categoryId: null,
-			provider: "generic" as const,
-			fetchStatus: "ok" as const,
-			createdAt: new Date().toISOString(),
-			uid,
-		};
+			provider: "generic",
+			fetchStatus: "ok",
+			createdAt: serverTimestamp(),
+			updatedAt: serverTimestamp(),
+		});
 
-		return c.json(created, 201);
+		const createdSnap = await newDocRef.get();
+		const createdData = createdSnap.data() as
+			| {
+					createdAt?: Timestamp;
+					updatedAt?: Timestamp;
+			  }
+			| undefined;
+		return c.json(
+			{
+				id: createdSnap.id,
+				url: normalizedUrl,
+				title: null,
+				description: null,
+				imageUrl: null,
+				categoryId: null,
+				provider: "generic" as const,
+				fetchStatus: "ok" as const,
+				createdAt: createdData?.createdAt
+					? createdData.createdAt.toDate().toISOString()
+					: undefined,
+				updatedAt: createdData?.updatedAt
+					? createdData.updatedAt.toDate().toISOString()
+					: undefined,
+			},
+			201,
+		);
 	} catch (e: any) {
 		if (e?.message === "UNAUTHORIZED") {
 			return c.json({ code: "UNAUTHORIZED", message: "Invalid token" }, 401);
@@ -143,14 +244,84 @@ const listLinksRoute = createRoute({
 			description: "認証エラー",
 			content: { "application/json": { schema: ErrorRes } },
 		},
+		500: {
+			description: "サーバー内部エラー",
+			content: { "application/json": { schema: ErrorRes } },
+		},
 	},
 });
 const listLinksHandler: RouteHandler<typeof listLinksRoute> = async (c) => {
 	try {
-		await requireUid(c.req.header("authorization") ?? undefined);
-		return c.json({ items: [] }, 200);
-	} catch {
-		return c.json({ code: "UNAUTHORIZED", message: "Invalid token" }, 401);
+		const uid = await requireUid(c.req.header("authorization") ?? undefined);
+		const {
+			categoryId,
+			inbox,
+			sort,
+			limit = 20,
+			cursor,
+		} = c.req.valid("query");
+
+		let q = db
+			.collection("users")
+			.doc(uid)
+			.collection(
+				"links",
+			) as FirebaseFirestore.Query<FirebaseFirestore.DocumentData>;
+		if (inbox === "true") {
+			q = q.where("categoryId", "==", null);
+		} else if (categoryId) {
+			q = q.where("categoryId", "==", categoryId);
+		}
+		q = q.orderBy("createdAt", (sort as "asc" | "desc") ?? "desc");
+
+		if (cursor) {
+			const cursorSnap = await db
+				.collection("users")
+				.doc(uid)
+				.collection("links")
+				.doc(cursor)
+				.get();
+			if (cursorSnap.exists) {
+				q = q.startAfter(cursorSnap);
+			}
+		}
+
+		const snap = await q.limit(limit).get();
+		const items = snap.docs.map((d) => {
+			const data = d.data() as {
+				url: string;
+				title: string | null;
+				description: string | null;
+				imageUrl: string | null;
+				categoryId: string | null;
+				createdAt?: Timestamp;
+				updatedAt?: Timestamp;
+				provider?: "youtube" | "x" | "instagram" | "generic";
+				fetchStatus?: "ok" | "partial" | "failed";
+			};
+			return {
+				id: d.id,
+				url: data.url,
+				title: data.title ?? null,
+				description: data.description ?? null,
+				imageUrl: data.imageUrl ?? null,
+				categoryId: data.categoryId ?? null,
+				provider: data.provider ?? "generic",
+				fetchStatus: data.fetchStatus ?? "ok",
+				createdAt: data.createdAt
+					? data.createdAt.toDate().toISOString()
+					: undefined,
+				updatedAt: data.updatedAt
+					? data.updatedAt.toDate().toISOString()
+					: undefined,
+			};
+		});
+		return c.json({ items }, 200);
+	} catch (e: any) {
+		if (e?.message === "UNAUTHORIZED") {
+			return c.json({ code: "UNAUTHORIZED", message: "Invalid token" }, 401);
+		}
+		return c.json({ code: "INTERNAL", message: "Unexpected error" }, 500);
 	}
 };
 
@@ -178,17 +349,56 @@ const getLinkRoute = createRoute({
 			description: "認証エラー",
 			content: { "application/json": { schema: ErrorRes } },
 		},
+		500: {
+			description: "サーバー内部エラー",
+			content: { "application/json": { schema: ErrorRes } },
+		},
 	},
 });
 const getLinkHandler: RouteHandler<typeof getLinkRoute> = async (c) => {
 	try {
-		await requireUid(c.req.header("authorization") ?? undefined);
-		const doc = null; // TODO: Firestore lookup
-		if (!doc)
+		const uid = await requireUid(c.req.header("authorization") ?? undefined);
+		const { id } = c.req.valid("param");
+		const ref = db.collection("users").doc(uid).collection("links").doc(id);
+		const snap = await ref.get();
+		if (!snap.exists)
 			return c.json({ code: "NOT_FOUND", message: "Link not found" }, 404);
-		return c.json(doc, 200);
-	} catch {
-		return c.json({ code: "UNAUTHORIZED", message: "Invalid token" }, 401);
+
+		const data = snap.data() as {
+			url: string;
+			title: string | null;
+			description: string | null;
+			imageUrl: string | null;
+			categoryId: string | null;
+			createdAt?: Timestamp;
+			updatedAt?: Timestamp;
+			provider?: "youtube" | "x" | "instagram" | "generic";
+			fetchStatus?: "ok" | "partial" | "failed";
+		};
+		return c.json(
+			{
+				id: snap.id,
+				url: data.url,
+				title: data.title ?? null,
+				description: data.description ?? null,
+				imageUrl: data.imageUrl ?? null,
+				categoryId: data.categoryId ?? null,
+				provider: data.provider ?? "generic",
+				fetchStatus: data.fetchStatus ?? "ok",
+				createdAt: data.createdAt
+					? data.createdAt.toDate().toISOString()
+					: undefined,
+				updatedAt: data.updatedAt
+					? data.updatedAt.toDate().toISOString()
+					: undefined,
+			},
+			200,
+		);
+	} catch (e: any) {
+		if (e?.message === "UNAUTHORIZED") {
+			return c.json({ code: "UNAUTHORIZED", message: "Invalid token" }, 401);
+		}
+		return c.json({ code: "INTERNAL", message: "Unexpected error" }, 500);
 	}
 };
 
@@ -220,23 +430,71 @@ const moveRoute = createRoute({
 			description: "認証エラー",
 			content: { "application/json": { schema: ErrorRes } },
 		},
+		500: {
+			description: "サーバー内部エラー",
+			content: { "application/json": { schema: ErrorRes } },
+		},
 	},
 });
 const moveHandler: RouteHandler<typeof moveRoute> = async (c) => {
 	try {
 		const uid = await requireUid(c.req.header("authorization") ?? undefined);
 		const { id } = c.req.valid("param");
-		const { categoryId } = await c.req.json();
+		const { categoryId } = (await c.req.json()) as {
+			categoryId: string | null;
+		};
+
+		const userRef = db.collection("users").doc(uid);
+		const linkRef = userRef.collection("links").doc(id);
+		const linkSnap = await linkRef.get();
+		if (!linkSnap.exists) {
+			return c.json({ code: "NOT_FOUND", message: "Link not found" }, 404);
+		}
+
+		if (categoryId) {
+			const catRef = userRef.collection("categories").doc(categoryId);
+			const catSnap = await catRef.get();
+			if (!catSnap.exists) {
+				return c.json(
+					{ code: "NOT_FOUND", message: "Category not found" },
+					404,
+				);
+			}
+		}
+
+		await linkRef.update({
+			categoryId: categoryId ?? null,
+			updatedAt: serverTimestamp(),
+		});
+		const updated = await linkRef.get();
+		const data = updated.data() as {
+			url: string;
+			title: string | null;
+			description: string | null;
+			imageUrl: string | null;
+			categoryId: string | null;
+			createdAt?: Timestamp;
+			updatedAt?: Timestamp;
+			provider?: "youtube" | "x" | "instagram" | "generic";
+			fetchStatus?: "ok" | "partial" | "failed";
+		};
+
 		return c.json(
 			{
-				id,
-				url: "https://example.com",
-				title: "Example",
-				description: null,
-				imageUrl: null,
-				categoryId,
-				createdAt: new Date().toISOString(),
-				uid,
+				id: updated.id,
+				url: data.url,
+				title: data.title ?? null,
+				description: data.description ?? null,
+				imageUrl: data.imageUrl ?? null,
+				categoryId: data.categoryId ?? null,
+				provider: data.provider ?? "generic",
+				fetchStatus: data.fetchStatus ?? "ok",
+				createdAt: data.createdAt
+					? data.createdAt.toDate().toISOString()
+					: undefined,
+				updatedAt: data.updatedAt
+					? data.updatedAt.toDate().toISOString()
+					: undefined,
 			},
 			200,
 		);
@@ -244,7 +502,7 @@ const moveHandler: RouteHandler<typeof moveRoute> = async (c) => {
 		if (e?.message === "UNAUTHORIZED") {
 			return c.json({ code: "UNAUTHORIZED", message: "Invalid token" }, 401);
 		}
-		return c.json({ code: "NOT_FOUND", message: "Link not found" }, 404);
+		return c.json({ code: "INTERNAL", message: "Unexpected error" }, 500);
 	}
 };
 
@@ -270,11 +528,14 @@ const listCatsRoute = createRoute({
 });
 const listCatsHandler: RouteHandler<typeof listCatsRoute> = async (c) => {
 	try {
-		await requireUid(c.req.header("authorization") ?? undefined);
-		return c.json(
-			{ items: [{ id: "cat_design", name: "デザイン", count: 12 }] },
-			200,
-		);
+		const uid = await requireUid(c.req.header("authorization") ?? undefined);
+		const catsRef = db.collection("users").doc(uid).collection("categories");
+		const snap = await catsRef.get();
+		const items = snap.docs.map((d) => ({
+			id: d.id,
+			name: (d.data().name as string) ?? "",
+		}));
+		return c.json({ items }, 200);
 	} catch {
 		return c.json({ code: "UNAUTHORIZED", message: "Invalid token" }, 401);
 	}
@@ -302,13 +563,34 @@ const createCatRoute = createRoute({
 			description: "認証エラー",
 			content: { "application/json": { schema: ErrorRes } },
 		},
+		409: {
+			description: "重複カテゴリ名",
+			content: { "application/json": { schema: ErrorRes } },
+		},
 	},
 });
 const createCatHandler: RouteHandler<typeof createCatRoute> = async (c) => {
 	try {
-		await requireUid(c.req.header("authorization") ?? undefined);
-		const { name } = await c.req.json();
-		return c.json({ id: "cat_new", name, count: 0 }, 201);
+		const uid = await requireUid(c.req.header("authorization") ?? undefined);
+		const body = (await c.req.json()) as { name: string };
+		const { name, nameLower } = normalizeCategoryName(body.name);
+		const catsRef = db.collection("users").doc(uid).collection("categories");
+		const dupSnap = await catsRef
+			.where("nameLower", "==", nameLower)
+			.limit(1)
+			.get();
+		if (!dupSnap.empty) {
+			return c.json(
+				{ code: "ALREADY_EXISTS", message: "Category name already exists" },
+				409,
+			);
+		}
+		const docRef = await catsRef.add({
+			name,
+			nameLower,
+			createdAt: serverTimestamp(),
+		});
+		return c.json({ id: docRef.id, name, count: 0 }, 201);
 	} catch {
 		return c.json({ code: "UNAUTHORIZED", message: "Invalid token" }, 401);
 	}
@@ -338,8 +620,51 @@ const searchRoute = createRoute({
 });
 const searchHandler: RouteHandler<typeof searchRoute> = async (c) => {
 	try {
-		await requireUid(c.req.header("authorization") ?? undefined);
-		return c.json({ items: [] }, 200);
+		const uid = await requireUid(c.req.header("authorization") ?? undefined);
+		const { q, limit = 20, cursor } = c.req.valid("query");
+		const linksRef = db.collection("users").doc(uid).collection("links");
+		// Firestore prefix match using range query
+		let searchQ = linksRef
+			.where("title", ">=", q)
+			.where("title", "<", `${q}\uf8ff`)
+			.orderBy("title", "asc");
+		if (cursor) {
+			const cursorSnap = await linksRef.doc(cursor).get();
+			if (cursorSnap.exists) {
+				searchQ = searchQ.startAfter(cursorSnap);
+			}
+		}
+		const querySnap = await searchQ.limit(limit).get();
+		const items = querySnap.docs.map((d) => {
+			const data = d.data() as {
+				url: string;
+				title: string | null;
+				description: string | null;
+				imageUrl: string | null;
+				categoryId: string | null;
+				createdAt?: Timestamp;
+				updatedAt?: Timestamp;
+				provider?: "youtube" | "x" | "instagram" | "generic";
+				fetchStatus?: "ok" | "partial" | "failed";
+			};
+			return {
+				id: d.id,
+				url: data.url,
+				title: data.title ?? null,
+				description: data.description ?? null,
+				imageUrl: data.imageUrl ?? null,
+				categoryId: data.categoryId ?? null,
+				provider: data.provider ?? "generic",
+				fetchStatus: data.fetchStatus ?? "ok",
+				createdAt: data.createdAt
+					? data.createdAt.toDate().toISOString()
+					: undefined,
+				updatedAt: data.updatedAt
+					? data.updatedAt.toDate().toISOString()
+					: undefined,
+			};
+		});
+		return c.json({ items }, 200);
 	} catch {
 		return c.json({ code: "UNAUTHORIZED", message: "Invalid token" }, 401);
 	}

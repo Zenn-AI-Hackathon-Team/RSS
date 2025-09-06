@@ -9,7 +9,6 @@ import InboxFetcher from "./src/features/routes/inbox/components/InboxFetcher";
 
 export default function Page() {
 	const { user } = useAuth();
-
 	const {
 		posts,
 		categories,

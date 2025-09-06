@@ -1,8 +1,11 @@
 export interface MemoItem {
-  id: number;
+  id: string;
+  url: string;
   title: string;
-  date: string;
-  category: string;
-  color: string;
-  icon: string;
+  description: string;
+  imageUrl: string;
+  categoryId: string;
+  provider: "youtube" | string;
+  fetchStatus: "ok" | "error";
+  createdAt: string;
 }

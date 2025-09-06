@@ -72,14 +72,11 @@ const MemoItemCard: React.FC<Props> = ({
       >
         <div className="p-4 flex items-start space-x-4">
           {/* Icon Badge */}
-          <div
-            className={`${item.color} rounded-lg p-4 flex items-center justify-center min-w-[80px] h-[80px] border-gray-200 border`}
-          >
+          <div className="bg-amber-300 rounded-lg p-4 flex items-center justify-center min-w-[80px] h-[80px] border-gray-200 border">
             <div className="text-white text-2xl font-bold">
-              {item.category === "Web3" && "Web3"}
-              {item.category === "AI" && "AI"}
-              {item.category === "Startup" && "SU"}
-              {item.category === "Management" && "MG"}
+              {Array.from(item.title ?? "")
+                .slice(0, 2)
+                .join("")}
             </div>
           </div>
 
@@ -89,7 +86,7 @@ const MemoItemCard: React.FC<Props> = ({
               {item.title}
             </h3>
             <div className="flex items-center space-x-4 text-sm">
-              <span className="text-gray-400">{item.date}</span>
+              <span className="text-gray-400">{item.createdAt}</span>
             </div>
           </div>
         </div>

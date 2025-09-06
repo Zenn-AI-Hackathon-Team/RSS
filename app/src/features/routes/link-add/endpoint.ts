@@ -6,7 +6,6 @@ import type {
 	ListLinksRes,
 } from "@/app/api/[[...route]]/model/model";
 import { client } from "@/app/src/client/api";
-import type { CategoryItem } from "@/app/src/types/categoryItem/types";
 import type { PostItem } from "@/app/src/types/postItem/types";
 
 type LinkType = z.infer<typeof Link>;
@@ -122,23 +121,6 @@ export const transformLinkToPost = (linkData: LinkType): PostItem => {
 			: new Date().toISOString().split("T")[0],
 		categoryId: linkData.categoryId || "inbox",
 	};
-};
-
-/**
- * 新しいカテゴリを作成する
- * @param categories 既存のカテゴリ一覧
- * @param newCategoryName 新しいカテゴリ名
- * @returns 更新されたカテゴリ一覧
- */
-export const createNewCategory = (
-	categories: CategoryItem[],
-	newCategoryName: string,
-): CategoryItem[] => {
-	if (!newCategoryName || categories.find((c) => c.name === newCategoryName)) {
-		throw new Error("そのカテゴリは既に存在します。");
-	}
-
-	return [...categories, { id: Date.now().toString(), name: newCategoryName }];
 };
 
 /**

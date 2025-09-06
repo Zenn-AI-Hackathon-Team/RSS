@@ -1,9 +1,9 @@
+import { autoAssignCategory } from "@/app/api/_shared/categorizer";
 import { type LinkDoc, toLinkDTO } from "@/app/api/_shared/mappers";
 import { normalizeUrl } from "@/app/api/_shared/normalizers";
+import { fetchOGP } from "@/app/api/_shared/ogp";
 import * as categoriesRepo from "@/app/api/repositories/categoriesRepo";
 import * as linksRepo from "@/app/api/repositories/linksRepo";
-import { fetchOGP } from "@/app/api/_shared/ogp";
-import { autoAssignCategory } from "@/app/api/_shared/categorizer";
 
 export async function createLink(uid: string, rawUrl: string) {
 	// 入力URLを正規化（クエリの不要パラメータ除去・末尾スラッシュ調整など）

@@ -1,9 +1,9 @@
-import type { CategoryItem } from "@/app/src/types/categoryItem/types";
+import type { CategoryWithCount } from "@/app/src/types/categoryItem/types";
 import type { PostItem } from "@/app/src/types/postItem/types";
 
 export interface UseSearchProps {
 	posts: PostItem[];
-	categories: CategoryItem[];
+	categories: CategoryWithCount[];
 	query: string;
 }
 
@@ -24,7 +24,7 @@ export interface UseSearchDialogReturn {
 
 export interface SearchBoxProps {
 	posts: PostItem[];
-	categories: CategoryItem[];
+	categories: CategoryWithCount[];
 	onResultClick: (postId: string) => void;
 	placeholder?: string;
 }

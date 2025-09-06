@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { ClientTweetCard } from "@/components/magicui/client-tweet-card";
+import Image from "next/image";
+import { useId, useState } from "react";
+// import { X, Plus } from "lucide-react";
+import type { CategoryItem } from "@/app/src/types/categoryItem/types";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 // import { Input } from "@/components/ui/input";
@@ -13,8 +15,6 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
-// import { X, Plus } from "lucide-react";
-import InstagramEmbed from "./InstagramEmbed";
 
 // --- 型定義 ---
 interface Post {
@@ -28,13 +28,10 @@ interface Post {
 	provider?: "youtube" | "x" | "instagram" | "generic";
 	videoId?: string | null;
 }
-interface Category {
-	id: string;
-	name: string;
-}
+
 interface PostDetailsScreenProps {
 	post: Post;
-	categories: Category[];
+	categories: CategoryItem[];
 	onCategoryChange: (postId: string, newCategoryId: string) => void;
 	onTagsChange: (postId: string, newTags: string[]) => void;
 }
@@ -46,8 +43,9 @@ export default function PostDetailsScreen({
 	onTagsChange,
 }: PostDetailsScreenProps) {
 	const [newTag, setNewTag] = useState("");
+	const categorySelectId = useId();
 
-	const addTag = () => {
+	const _addTag = () => {
 		const trimmedTag = newTag.trim().toLowerCase();
 		if (trimmedTag && !post.tags.includes(trimmedTag)) {
 			onTagsChange(post.id, [...post.tags, trimmedTag]);
@@ -56,35 +54,16 @@ export default function PostDetailsScreen({
 	};
 
 	return (
-		<div className="space-y-6 p-4">
-			{post.provider === "youtube" && post.videoId ? (
-				<div className="rounded-lg w-full overflow-hidden aspect-video">
-					<iframe
-						src={`https://www.youtube.com/embed/${post.videoId}`}
-						title={post.title}
-						allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-						referrerPolicy="strict-origin-when-cross-origin"
-						allowFullScreen
-						className="w-full h-full"
-					/>
-				</div>
-			) : post.provider === "instagram" ? (
-				<div className="rounded-lg w-full overflow-hidden">
-					<InstagramEmbed url={post.url} hideCaption maxHeight={640} />
-				</div>
-			) : post.provider === "x" && post.tweetId ? (
-				<div className="rounded-lg w-full overflow-hidden">
-					<ClientTweetCard id={post.tweetId} />
-				</div>
-			) : (
-				<img
-					src={post.thumbnail}
-					alt={post.title}
-					className="border rounded-lg w-full h-auto max-h-52 object-cover"
-				/>
-			)}
+		<div className="p-4 space-y-6">
+			<Image
+				src={post.thumbnail}
+				alt={post.title}
+				width={800}
+				height={208}
+				className="w-full h-auto max-h-52 object-cover rounded-lg border"
+			/>
 
-			<h1 className="font-bold text-2xl text-slate-900">{post.title}</h1>
+			<h1 className="text-2xl font-bold text-slate-900">{post.title}</h1>
 
 			<Button asChild className="w-full h-11 text-base">
 				<a href={post.url} target="_blank" rel="noopener noreferrer">
@@ -93,13 +72,12 @@ export default function PostDetailsScreen({
 			</Button>
 
 			<div className="space-y-2">
-				<Label htmlFor="category-select">カテゴリ</Label>
+				<Label htmlFor={categorySelectId}>カテゴリ</Label>
 				<Select
 					value={post.categoryId}
 					onValueChange={(value) => onCategoryChange(post.id, value)}
 				>
-					{/** biome-ignore lint/correctness/useUniqueElementIds: <explanation> */}
-					<SelectTrigger id="category-select">
+					<SelectTrigger id={categorySelectId}>
 						<SelectValue placeholder="カテゴリを選択..." />
 					</SelectTrigger>
 					<SelectContent>

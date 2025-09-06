@@ -110,7 +110,7 @@ export default function ClientPage({ id }: { id: string }) {
 		setPost((prev) => (prev ? { ...prev, categoryId: newCategoryId } : prev));
 	};
 
-	const handleTagsChange = (postId: string, newTags: string[]) => {
+	const handleTagsChange = (_postId: string, newTags: string[]) => {
 		setPost((prev) => (prev ? { ...prev, tags: newTags } : prev));
 	};
 

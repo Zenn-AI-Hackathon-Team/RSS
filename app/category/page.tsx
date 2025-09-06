@@ -6,7 +6,7 @@ const page = () => {
 	return (
 		<div>
 			<Header title="Category View" />
-			<CategoryViewContainer />
+			<CategoryViewContainer memoitems={[]} />
 		</div>
 	);
 };

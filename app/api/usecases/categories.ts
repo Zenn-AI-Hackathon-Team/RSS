@@ -1,10 +1,34 @@
-import { toCategoryDTO } from "@/app/api/_shared/mappers";
 import { normalizeCategoryName } from "@/app/api/_shared/normalizers";
 import * as categoriesRepo from "@/app/api/repositories/categoriesRepo";
+import * as linksRepo from "@/app/api/repositories/linksRepo";
 
 export async function listCategories(uid: string) {
 	const docs = await categoriesRepo.list(uid);
-	return docs.map((d) => toCategoryDTO(d.id, d.data() as { name: string }));
+	const categories = docs.map((d) => ({
+		id: d.id,
+		...(d.data() as { name: string }),
+	}));
+
+	// 全カテゴリIDと inbox (null) のリンク数を取得
+	const categoryIds: (string | null)[] = categories.map((c) => c.id);
+	categoryIds.push(null); // inbox用
+	const counts = await linksRepo.countByCategoriesBatch(uid, categoryIds);
+
+	// inbox カテゴリを追加
+	const result = [
+		{
+			id: "inbox",
+			name: "Inbox",
+			count: counts.inbox || 0,
+		},
+		...categories.map((c) => ({
+			id: c.id,
+			name: c.name,
+			count: counts[c.id] || 0,
+		})),
+	];
+
+	return result;
 }
 
 export async function createCategory(uid: string, rawName: string) {

@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
 	Category,
 	CategoryCreateBody,
+	CategoryWithCount,
 	ErrorRes,
 	Health,
 	Link,
@@ -285,7 +286,9 @@ const listCatsRoute = createRoute({
 		200: {
 			description: "カテゴリ一覧",
 			content: {
-				"application/json": { schema: z.object({ items: z.array(Category) }) },
+				"application/json": {
+					schema: z.object({ items: z.array(CategoryWithCount) }),
+				},
 			},
 		},
 		401: {

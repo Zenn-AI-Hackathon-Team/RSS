@@ -1,13 +1,13 @@
 export const runtime = "nodejs";
 
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { swaggerUI } from "@hono/swagger-ui";
+import { OpenAPIHono } from "@hono/zod-openapi";
 import { handle } from "hono/vercel";
-import { linksApi } from "./linksApi";
+import { api } from "./linksApi";
 
 const app = new OpenAPIHono()
 	.basePath("/api")
-	.route("/", linksApi)
+	.route("/", api)
 	.doc("/specification", {
 		openapi: "3.0.0",
 		info: { title: "API", version: "1.0.0" },

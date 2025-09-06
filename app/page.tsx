@@ -1,5 +1,6 @@
 export const dynamic = "force-dynamic";
 import { getServerApi } from "@/app/src/server/getServerApi";
+import { Button } from "@/components/ui/button";
 
 export default async function Page() {
 	const api = getServerApi();
@@ -17,4 +18,5 @@ export default async function Page() {
 			</a>
 		</main>
 	);
+
 }

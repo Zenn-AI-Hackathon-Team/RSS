@@ -1,4 +1,3 @@
-// components/memo/MemoItems.tsx
 "use client";
 
 import React from "react";
@@ -16,7 +15,7 @@ const MemoItemCard: React.FC<Props> = ({ item, onClick }) => {
       className="bg-gray-800 border-gray-700 hover:bg-gray-750 transition-colors cursor-pointer group"
       onClick={() => onClick?.(item)}
     >
-      <div className="p-4 flex items-start space-x-4">
+      <div className="p-4 flex items-center space-x-4">
         <div
           className={`${item.color} rounded-lg p-4 flex items-center justify-center min-w-[80px] h-[80px]`}
         >
@@ -35,17 +34,6 @@ const MemoItemCard: React.FC<Props> = ({ item, onClick }) => {
 
           <div className="flex items-center space-x-4 text-sm">
             <span className="text-gray-400">{item.date}</span>
-
-            <div className="flex items-center space-x-2">
-              {item.tags.map((tag, index) => (
-                <span
-                  key={index}
-                  className="px-3 py-1 bg-gray-700 text-gray-300 rounded-full text-xs"
-                >
-                  {tag}
-                </span>
-              ))}
-            </div>
           </div>
         </div>
       </div>

@@ -3,7 +3,6 @@ export interface MemoItem {
   title: string;
   date: string;
   category: string;
-  tags: string[];
   color: string;
   icon: string;
 }

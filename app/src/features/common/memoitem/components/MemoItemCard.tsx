@@ -3,7 +3,7 @@
 
 import React, { useRef } from "react";
 import { Card } from "@/components/ui/card";
-import { MemoItem } from "../../../../types/memoitem/types";
+import type { MemoItem } from "../../../../types/memoitem/types";
 
 type Props = {
   item: MemoItem;

@@ -1,12 +1,12 @@
 // CategoryViewContainer.tsx
 "use client";
 
-import React, { useMemo, useState } from "react";
-import CategoryItemList from "./CategoryItemList";
-import CategoryHeader from "./CategoryHeader";
-import { MemoItem } from "../../../../types/memoitem/types";
-import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Button } from "@/components/ui/button";
+import type { MemoItem } from "../../../../types/memoitem/types";
+import CategoryHeader from "./CategoryHeader";
+import CategoryItemList from "./CategoryItemList";
 
 type Props = {
   memoitems: MemoItem[];

@@ -1,10 +1,10 @@
 // CategoryItemList.tsx
 "use client";
 
-import React from "react";
 import { Inbox } from "lucide-react";
+import type React from "react";
+import type { MemoItem } from "../../../../types/memoitem/types";
 import MemoItemCard from "../../../common/memoitem/components/MemoItemCard";
-import { MemoItem } from "../../../../types/memoitem/types";
 
 type Props = {
   items: MemoItem[];

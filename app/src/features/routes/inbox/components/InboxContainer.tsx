@@ -1,8 +1,9 @@
 "use client";
-import React, { useState } from "react";
+import type React from "react";
+import { useState } from "react";
+import type { MemoItem } from "../../../../types/memoitem/types";
 import InboxHeader from "./InboxHeader";
 import InboxList from "./InboxList";
-import { MemoItem } from "../../../../types/memoitem/types";
 
 type Props = {
   memoitems: MemoItem[];

@@ -1,11 +1,17 @@
 import type { User } from "firebase/auth";
 import type { z } from "zod";
-import type { Link } from "@/app/api/[[...route]]/model/model";
+import type {
+	Link,
+	ListLinksQuery,
+	ListLinksRes,
+} from "@/app/api/[[...route]]/model/model";
 import { client } from "@/app/src/client/api";
 import type { CategoryItem } from "@/app/src/types/categoryItem/types";
 import type { PostItem } from "@/app/src/types/postItem/types";
 
 type LinkType = z.infer<typeof Link>;
+type ListLinksQueryType = z.input<typeof ListLinksQuery>;
+type ListLinksResType = z.infer<typeof ListLinksRes>;
 
 /**
  * URLからリンク情報を取得・保存する
@@ -22,7 +28,7 @@ export const saveLink = async (url: string, user: User): Promise<LinkType> => {
 			headers: {
 				authorization: token,
 			},
-		}
+		},
 	);
 
 	if (!response.ok) {
@@ -31,6 +37,49 @@ export const saveLink = async (url: string, user: User): Promise<LinkType> => {
 	}
 
 	return await response.json();
+};
+
+/**
+ * 指定IDのリンク詳細を取得する
+ * @param id リンクID
+ * @param user Firebase認証ユーザー
+ * @returns 取得したリンク
+ */
+export const getLink = async (id: string, user: User): Promise<LinkType> => {
+	const token = await user.getIdToken();
+	const response = await client.api.links[":id"].$get(
+		{
+			param: { id },
+		},
+		{ headers: { authorization: `Bearer ${token}` } },
+	);
+	if (!response.ok) {
+		const errorData = await response.json();
+		throw new Error(errorData.message || "リンクの取得に失敗しました");
+	}
+	return await response.json();
+};
+
+/**
+ * リンク一覧を取得する
+ */
+export const listLinks = async (
+	user: User,
+	params: ListLinksQueryType = {},
+): Promise<ListLinksResType["items"]> => {
+	const token = await user.getIdToken();
+	const response = await client.api.links.$get(
+		{
+			query: params,
+		},
+		{ headers: { authorization: token } },
+	);
+	if (!response.ok) {
+		const errorData = await response.json();
+		throw new Error(errorData.message || "リンク一覧の取得に失敗しました");
+	}
+	const data: ListLinksResType = await response.json();
+	return data.items;
 };
 
 /**
@@ -82,4 +131,23 @@ export const saveLinkAndTransform = async (
 ): Promise<PostItem> => {
 	const linkData = await saveLink(url, user);
 	return transformLinkToPost(linkData);
+};
+
+/**
+ * リンク一覧をPostに変換して返す
+ */
+export const listPosts = async (
+	user: User,
+	params: ListLinksQueryType = {},
+): Promise<PostItem[]> => {
+	const items = await listLinks(user, params);
+	return items.map(transformLinkToPost);
+};
+
+/**
+ * 指定IDのリンクをPostに変換して返す
+ */
+export const getPost = async (id: string, user: User): Promise<PostItem> => {
+	const link = await getLink(id, user);
+	return transformLinkToPost(link);
 };

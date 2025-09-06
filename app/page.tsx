@@ -21,11 +21,6 @@ const initialCategories = [
 ];
 
 
-/**
- * ホーム画面のページ (クライアントコンポーネント)
- * 役割：
- * 1. CategoryCardとSearchBoxコンポーネントを組み合わせて画面を構築する。
- */
 export default function Page() {
     const router = useRouter(); // ページ遷移用のフック
 
@@ -39,11 +34,23 @@ export default function Page() {
         } else if (newCategoryName) { alert("そのカテゴリは既に存在します。"); }
     };
 
+    /**
+     * SearchBox内で検索結果がクリックされたときに呼び出される関数
+     * @param postId - クリックされた投稿のID
+     */
+    const handleSearchResultClick = (postId: string) => {
+        router.push(`/post/${postId}`);
+    };
+
     return (
         <main className="relative min-h-screen max-w-md mx-auto border-x bg-white p-4 space-y-8">
             
-            {/* SearchBoxコンポーネントを配置 */}
-            <SearchBox onFocus={() => router.push('/search')} />
+            {/* SearchBoxに投稿データ、カテゴリデータ、クリック時の処理を渡す */}
+            <SearchBox 
+                posts={posts} 
+                categories={categories} 
+                onResultClick={handleSearchResultClick} 
+            />
 
             <div>
                 <h2 className="text-lg font-bold text-slate-800">カテゴリ</h2>

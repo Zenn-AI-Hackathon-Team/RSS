@@ -17,6 +17,14 @@ export const Category = z
 	})
 	.openapi("Category");
 
+export const CategoryWithCount = z
+	.object({
+		id: z.string(),
+		name: z.string(),
+		count: z.number().int(),
+	})
+	.openapi("CategoryWithCount");
+
 export const CategoryCreateBody = z
 	.object({
 		name: z.string().min(1),
@@ -58,13 +66,9 @@ export const ListLinksQuery = z
 				description:
 					"未分類（Inbox）のみを対象にするフラグ。'true' の場合、'categoryId' は無視されます。",
 			}),
-		sort: z
-			.enum(["asc", "desc"])
-			.default("desc")
-			.optional()
-			.openapi({
-				description: "作成日時の並び順。既定は 'desc'（新しい順）。",
-			}),
+		sort: z.enum(["asc", "desc"]).default("desc").optional().openapi({
+			description: "作成日時の並び順。既定は 'desc'（新しい順）。",
+		}),
 		limit: z.coerce
 			.number()
 			.int()
@@ -90,12 +94,9 @@ export const MoveCategoryBody = z
 
 export const SearchQuery = z
 	.object({
-		q: z
-			.string()
-			.min(1)
-			.openapi({
-				description: "検索キーワード。タイトル・カテゴリ名を対象にします。",
-			}),
+		q: z.string().min(1).openapi({
+			description: "検索キーワード。タイトル・カテゴリ名を対象にします。",
+		}),
 		limit: z.coerce
 			.number()
 			.int()

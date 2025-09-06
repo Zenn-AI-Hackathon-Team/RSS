@@ -1,8 +1,8 @@
 "use client";
 
 import CategoryContainer from "@/app/src/features/routes/category/components/CategoryContainer";
+import { useHomePage } from "@/app/src/features/routes/category/hooks";
 import { AddButton } from "@/app/src/features/routes/link-add/components/AddButton";
-import { useHomePage } from "@/app/src/features/routes/link-add/hooks";
 import { SearchBox } from "@/app/src/features/routes/search/components/SearchBox";
 import { useAuth } from "@/app/src/providers/AuthProvider";
 import InboxFetcher from "./src/features/routes/inbox/components/InboxFetcher";
@@ -12,9 +12,11 @@ export default function Page() {
 	const {
 		posts,
 		categories,
+		loading,
+		error,
 		handleAddNewCategory,
 		handleSaveLink,
-		handleSearchResultClick,
+		handlePostClick,
 		handleCategoryClick,
 	} = useHomePage(user);
 
@@ -23,7 +25,7 @@ export default function Page() {
 			<SearchBox
 				posts={posts}
 				categories={categories}
-				onResultClick={handleSearchResultClick}
+				onResultClick={handlePostClick}
 			/>
 
 			<CategoryContainer
@@ -31,6 +33,8 @@ export default function Page() {
 				posts={posts}
 				onCategoryClick={handleCategoryClick}
 				onAddNewCategory={handleAddNewCategory}
+				loading={loading}
+				error={error}
 			/>
 			<hr className="border-2 border-slate-200"></hr>
 

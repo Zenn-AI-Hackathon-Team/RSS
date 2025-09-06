@@ -77,7 +77,10 @@ async function embedBatch(texts: string[]): Promise<number[][]> {
 	if (!res.ok) {
 		const t = await res.text().catch(() => "");
 		console.error(
-			`[autoCategory] embeddings http_error status=${res.status} body=${t.slice(0, 200)}`,
+			`[autoCategory] embeddings http_error status=${res.status} body=${t.slice(
+				0,
+				200,
+			)}`,
 		);
 		throw new Error(`Embedding failed: ${res.status}`);
 	}
@@ -210,7 +213,7 @@ async function llmChooseCategory(
 		}
 	}
 
-	if (res && res.ok) {
+	if (res?.ok) {
 		const data = (await res.json()) as any;
 		console.log(`[autoCategory] llm ok in ${Date.now() - started}ms`);
 		const content: string | undefined = data.choices?.[0]?.message?.content;
@@ -234,7 +237,10 @@ async function llmChooseCategory(
 			body = res ? await res.text() : "";
 		} catch {}
 		console.error(
-			`[autoCategory] llm http_error status=${status} body=${body.slice(0, 200)}`,
+			`[autoCategory] llm http_error status=${status} body=${body.slice(
+				0,
+				200,
+			)}`,
 		);
 		// continue to Gemini fallback if available
 	}
@@ -242,7 +248,9 @@ async function llmChooseCategory(
 	// Gemini fallback
 	if (!config.geminiApiKey) return { categoryId: null, confidence: 0 };
 	try {
-		const gemUrl = `${config.geminiBaseUrl}/models/${encodeURIComponent(config.geminiModel)}:generateContent?key=${encodeURIComponent(config.geminiApiKey)}`;
+		const gemUrl = `${config.geminiBaseUrl}/models/${encodeURIComponent(
+			config.geminiModel,
+		)}:generateContent?key=${encodeURIComponent(config.geminiApiKey)}`;
 		const prompt =
 			`Given categories (id,name) and text, respond ONLY with compact JSON: {"id": <string|null>, "confidence": <number 0..1>}. Pick one id or null.\n` +
 			JSON.stringify({ text, categories: cats });
@@ -255,7 +263,10 @@ async function llmChooseCategory(
 		if (!gRes.ok) {
 			const t = await gRes.text().catch(() => "");
 			console.error(
-				`[autoCategory] gemini http_error status=${gRes.status} body=${t.slice(0, 200)}`,
+				`[autoCategory] gemini http_error status=${gRes.status} body=${t.slice(
+					0,
+					200,
+				)}`,
 			);
 			return { categoryId: null, confidence: 0 };
 		}
@@ -281,7 +292,10 @@ async function llmChooseCategory(
 			return { categoryId: id, confidence: conf };
 		} catch {
 			console.error(
-				`[autoCategory] gemini parse_error content=${(textOut || "").slice(0, 200)}`,
+				`[autoCategory] gemini parse_error content=${(textOut || "").slice(
+					0,
+					200,
+				)}`,
 			);
 			return { categoryId: null, confidence: 0 };
 		}
@@ -307,7 +321,9 @@ export async function autoAssignCategory(
 	if (!apiKey && !config.geminiApiKey)
 		return { categoryId: null, confidence: 0, method: "none" };
 	console.log(
-		`[autoCategory] start uid=${uid} link=${link.id} mode=${config.autoCategoryMode} flags llm=${llmEnabled()} threshold=${threshold()}`,
+		`[autoCategory] start uid=${uid} link=${link.id} mode=${
+			config.autoCategoryMode
+		} flags llm=${llmEnabled()} threshold=${threshold()}`,
 	);
 
 	const catDocs = await categoriesRepo.listRaw(uid);
@@ -342,7 +358,9 @@ export async function autoAssignCategory(
 			const chosen = llm.categoryId ?? null;
 			if (chosen) {
 				console.log(
-					`[autoCategory] llm ok uid=${uid} link=${link.id} cat=${chosen} conf=${(llm.confidence ?? 0).toFixed(3)}`,
+					`[autoCategory] llm ok uid=${uid} link=${
+						link.id
+					} cat=${chosen} conf=${(llm.confidence ?? 0).toFixed(3)}`,
 				);
 				await db
 					.collection("users")
@@ -393,7 +411,7 @@ export async function autoAssignCategory(
 		ensuredCats = cats.map((c) => ({
 			id: c.id,
 			name: c.name,
-			nameLower: c.nameLower!,
+			nameLower: c.nameLower || c.name.toLowerCase(),
 			embedding: [],
 		}));
 	}
@@ -418,7 +436,9 @@ export async function autoAssignCategory(
 		if (best.id && best.score >= threshold()) {
 			// ログ: 埋め込みで採用
 			console.log(
-				`[autoCategory] embedding ok uid=${uid} link=${link.id} cat=${best.id} score=${best.score.toFixed(3)}`,
+				`[autoCategory] embedding ok uid=${uid} link=${link.id} cat=${
+					best.id
+				} score=${best.score.toFixed(3)}`,
 			);
 			// 判定メタを保存（ベストエフォート）
 			await db
@@ -456,7 +476,9 @@ export async function autoAssignCategory(
 		if (chosen) {
 			// ログ: LLMで採用
 			console.log(
-				`[autoCategory] llm ok uid=${uid} link=${link.id} cat=${chosen} conf=${(llm.confidence ?? 0).toFixed(3)}`,
+				`[autoCategory] llm ok uid=${uid} link=${link.id} cat=${chosen} conf=${(
+					llm.confidence ?? 0
+				).toFixed(3)}`,
 			);
 			await db
 				.collection("users")

@@ -1,8 +1,8 @@
 import React from "react";
-import AuthCard from "../src/features/routes/auth/components/AuthCard";
+import LoginCard from "../src/features/routes/auth/components/LoginCard";
 
 const page = () => {
-  return <AuthCard />;
+  return <LoginCard />;
 };
 
 export default page;

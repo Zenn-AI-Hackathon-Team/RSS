@@ -11,7 +11,8 @@ const initialPosts: PostItem[] = [
 		id: "p1",
 		title: "Reactの新しい状態管理ライブラリについて",
 		url: "#",
-		thumbnail: "https://placehold.co/400x300/6366f1/ffffff?text=React",
+		thumbnail:
+			"https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=400&h=300&fit=crop&crop=center",
 		savedDate: "2025-09-03",
 		categoryId: "4",
 	},
@@ -19,7 +20,8 @@ const initialPosts: PostItem[] = [
 		id: "p2",
 		title: "最高のUXを実現するためのデザイン原則10選",
 		url: "#",
-		thumbnail: "https://placehold.co/400x300/ec4899/ffffff?text=UX/UI",
+		thumbnail:
+			"https://images.unsplash.com/photo-1558655146-9f40138edfeb?w=400&h=300&fit=crop&crop=center",
 		savedDate: "2025-09-02",
 		categoryId: "1",
 	},
@@ -27,7 +29,8 @@ const initialPosts: PostItem[] = [
 		id: "p3",
 		title: "知らないと損する、次世代AIツールの活用法",
 		url: "#",
-		thumbnail: "https://placehold.co/400x300/8b5cf6/ffffff?text=AI",
+		thumbnail:
+			"https://images.unsplash.com/photo-1677442136019-21780ecad995?w=400&h=300&fit=crop&crop=center",
 		savedDate: "2025-09-04",
 		categoryId: "inbox",
 	},

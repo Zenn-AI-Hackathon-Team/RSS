@@ -11,7 +11,7 @@ const nextConfig = {
 			},
 			{
 				protocol: "https",
-				hostname: "**", // 他の外部画像ソースも許可
+				hostname: "**",
 				port: "",
 				pathname: "/**",
 			},

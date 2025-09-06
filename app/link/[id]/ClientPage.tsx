@@ -5,6 +5,8 @@ import { Header } from "@/app/src/features/common/header/components/Header";
 import PostDetailsScreen from "@/app/src/features/routes/CategoryDetailsScreen/components/CategoryDetailsScreen";
 import { useAuth } from "@/app/src/providers/AuthProvider";
 
+type Provider = "youtube" | "x" | "instagram" | "generic";
+
 type LinkDTO = {
 	id: string;
 	url: string;
@@ -12,6 +14,7 @@ type LinkDTO = {
 	description: string | null;
 	imageUrl: string | null;
 	categoryId: string | null;
+	provider?: Provider;
 	createdAt?: string;
 	updatedAt?: string;
 };
@@ -23,6 +26,9 @@ type Post = {
 	thumbnail: string;
 	categoryId: string;
 	tags: string[];
+	provider?: Provider;
+	videoId?: string | null;
+	tweetId?: string | null;
 };
 
 type Category = { id: string; name: string };
@@ -49,6 +55,11 @@ export default function ClientPage({ id }: { id: string }) {
 			if (!res.ok) return;
 			const link: LinkDTO = await res.json();
 
+			const provider: Provider = link.provider ?? detectProvider(link.url);
+			const videoId =
+				provider === "youtube" ? extractYouTubeId(link.url) : null;
+			const tweetId = provider === "x" ? extractTweetId(link.url) : null;
+
 			const p: Post = {
 				id: link.id,
 				title: link.title ?? "タイトルなし",
@@ -58,6 +69,9 @@ export default function ClientPage({ id }: { id: string }) {
 					"https://placehold.co/400x300/gray/white?text=No+Image",
 				categoryId: link.categoryId ?? "inbox",
 				tags: [],
+				provider,
+				videoId,
+				tweetId,
 			};
 			setPost(p);
 		})();
@@ -117,4 +131,51 @@ export default function ClientPage({ id }: { id: string }) {
 			)}
 		</div>
 	);
+}
+
+function detectProvider(raw: string): Provider {
+	try {
+		const u = new URL(raw);
+		const h = u.hostname.toLowerCase();
+		if (h.includes("youtube.com") || h === "youtu.be") return "youtube";
+		if (h.includes("twitter.com") || h.includes("x.com")) return "x";
+		if (h.includes("instagram.com")) return "instagram";
+		return "generic";
+	} catch {
+		return "generic";
+	}
+}
+
+function extractYouTubeId(raw: string): string | null {
+	try {
+		const u = new URL(raw);
+		const host = u.hostname.toLowerCase();
+		if (host === "youtu.be") {
+			const id = u.pathname.split("/").filter(Boolean)[0];
+			return id || null;
+		}
+		if (host.includes("youtube.com")) {
+			// watch?v=, /embed/, /shorts/
+			if (u.searchParams.get("v")) return u.searchParams.get("v");
+			const parts = u.pathname.split("/").filter(Boolean);
+			if (parts[0] === "embed" && parts[1]) return parts[1];
+			if (parts[0] === "shorts" && parts[1]) return parts[1];
+		}
+		return null;
+	} catch {
+		return null;
+	}
+}
+
+function extractTweetId(raw: string): string | null {
+	try {
+		const u = new URL(raw);
+		// Patterns: https://twitter.com/{user}/status/{id}, https://x.com/{user}/status/{id}
+		const parts = u.pathname.split("/").filter(Boolean);
+		const statusIdx = parts.findIndex((p) => p === "status");
+		if (statusIdx >= 0 && parts[statusIdx + 1]) return parts[statusIdx + 1];
+		return null;
+	} catch {
+		return null;
+	}
 }

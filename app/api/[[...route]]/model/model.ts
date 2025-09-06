@@ -34,6 +34,7 @@ export const Link = z
 		provider: z.enum(["youtube", "x", "instagram", "generic"]).optional(),
 		fetchStatus: z.enum(["ok", "partial", "failed"]).optional(),
 		createdAt: z.string().datetime().optional(),
+		updatedAt: z.string().datetime().optional(),
 	})
 	.openapi("Link");
 
@@ -49,6 +50,8 @@ export const ListLinksQuery = z
 		categoryId: z.string().optional(),
 		inbox: z.enum(["true", "false"]).optional(),
 		sort: z.enum(["asc", "desc"]).default("desc").optional(),
+		limit: z.coerce.number().int().min(1).max(100).default(20).optional(),
+		cursor: z.string().optional(),
 	})
 	.openapi("ListLinksQuery");
 
@@ -61,7 +64,11 @@ export const MoveCategoryBody = z
 	.openapi("MoveCategoryBody");
 
 export const SearchQuery = z
-	.object({ q: z.string().min(1) })
+	.object({
+		q: z.string().min(1),
+		limit: z.coerce.number().int().min(1).max(100).default(20).optional(),
+		cursor: z.string().optional(),
+	})
 	.openapi("SearchQuery");
 
 export const SearchRes = ListLinksRes.openapi("SearchRes");

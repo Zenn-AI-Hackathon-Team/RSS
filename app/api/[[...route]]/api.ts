@@ -11,7 +11,12 @@ import {
 	MoveCategoryBody,
 	SearchQuery,
 	SearchRes,
-} from "@/app/api/[[...route]]/model/link";
+} from "@/app/api/[[...route]]/model/model";
+import * as catUC from "@/app/api/usecases/categories";
+import * as linkUC from "@/app/api/usecases/links";
+import { authAdmin } from "@/lib/firebaseAdmin";
+
+// normalizers are used inside usecases
 
 /* =========================
  * Helpers
@@ -20,8 +25,16 @@ async function requireUid(authorization?: string): Promise<string> {
 	if (!authorization?.startsWith("Bearer ")) {
 		throw new Error("UNAUTHORIZED");
 	}
-	return "demo-uid"; // TODO: Firebase Admin verifyIdToken
+	const token = authorization.slice("Bearer ".length).trim();
+	try {
+		const decoded = await authAdmin.verifyIdToken(token);
+		return decoded.uid;
+	} catch {
+		throw new Error("UNAUTHORIZED");
+	}
 }
+
+// moved to _shared/normalizers
 
 /* =========================
  * Routes
@@ -51,9 +64,6 @@ const createLinkRoute = createRoute({
 	description:
 		"URLを送信すると OGP を取得して保存します。既存リンクがある場合は既存データを返し、存在しなければ新規作成します。",
 	request: {
-		headers: z.object({
-			authorization: z.string().describe("Firebase ID トークン"),
-		}),
 		body: {
 			required: true,
 			content: {
@@ -61,6 +71,7 @@ const createLinkRoute = createRoute({
 			},
 		},
 	},
+	security: [{ bearerAuth: [] }],
 	responses: {
 		200: {
 			description: "既存リンクを返却",
@@ -85,38 +96,10 @@ const createLinkHandler: RouteHandler<typeof createLinkRoute> = async (c) => {
 	try {
 		const uid = await requireUid(c.req.header("authorization") ?? undefined);
 		const { url } = await c.req.json<{ url: string }>();
-
-		// TODO: URL 正規化（utm除去・小文字化など）
-		const normalizedUrl = url;
-
-		// TODO: Firestore lookup (uid, normalizedUrl)
-		const existing = null; // 既存が見つかったらオブジェクトにする
-
-		if (existing) {
-			// 既存があれば 200
-			return c.json(existing, 200);
-		}
-
-		// 新規作成フロー
-		// 1. OGP をサーバーで取得 (title, description, imageUrl)
-		// 2. AI分類 → categoryId（信頼度低ければ null）
-		// 3. Firestore 保存
-		const created = {
-			id: "link_123",
-			url,
-			title: "Example Title",
-			description: null,
-			imageUrl: null,
-			categoryId: null,
-			provider: "generic" as const,
-			fetchStatus: "ok" as const,
-			createdAt: new Date().toISOString(),
-			uid,
-		};
-
-		return c.json(created, 201);
-	} catch (e: any) {
-		if (e?.message === "UNAUTHORIZED") {
+		const result = await linkUC.createLink(uid, url);
+		return c.json(result.link, result.created ? 201 : 200);
+	} catch (e: unknown) {
+		if (e instanceof Error && e.message === "UNAUTHORIZED") {
 			return c.json({ code: "UNAUTHORIZED", message: "Invalid token" }, 401);
 		}
 		return c.json({ code: "INTERNAL", message: "Unexpected error" }, 500);
@@ -134,6 +117,7 @@ const listLinksRoute = createRoute({
 		headers: z.object({ authorization: z.string() }),
 		query: ListLinksQuery,
 	},
+	security: [{ bearerAuth: [] }],
 	responses: {
 		200: {
 			description: "一覧を返却",
@@ -143,14 +127,35 @@ const listLinksRoute = createRoute({
 			description: "認証エラー",
 			content: { "application/json": { schema: ErrorRes } },
 		},
+		500: {
+			description: "サーバー内部エラー",
+			content: { "application/json": { schema: ErrorRes } },
+		},
 	},
 });
 const listLinksHandler: RouteHandler<typeof listLinksRoute> = async (c) => {
 	try {
-		await requireUid(c.req.header("authorization") ?? undefined);
-		return c.json({ items: [] }, 200);
-	} catch {
-		return c.json({ code: "UNAUTHORIZED", message: "Invalid token" }, 401);
+		const uid = await requireUid(c.req.header("authorization") ?? undefined);
+		const {
+			categoryId,
+			inbox,
+			sort,
+			limit = 20,
+			cursor,
+		} = c.req.valid("query");
+		const items = await linkUC.listLinks(uid, {
+			categoryId,
+			inbox,
+			sort,
+			limit,
+			cursor,
+		});
+		return c.json({ items }, 200);
+	} catch (e: unknown) {
+		if (e instanceof Error && e.message === "UNAUTHORIZED") {
+			return c.json({ code: "UNAUTHORIZED", message: "Invalid token" }, 401);
+		}
+		return c.json({ code: "INTERNAL", message: "Unexpected error" }, 500);
 	}
 };
 
@@ -165,6 +170,7 @@ const getLinkRoute = createRoute({
 		headers: z.object({ authorization: z.string() }),
 		params: z.object({ id: z.string().describe("リンクのID") }),
 	},
+	security: [{ bearerAuth: [] }],
 	responses: {
 		200: {
 			description: "詳細情報",
@@ -178,17 +184,30 @@ const getLinkRoute = createRoute({
 			description: "認証エラー",
 			content: { "application/json": { schema: ErrorRes } },
 		},
+		500: {
+			description: "サーバー内部エラー",
+			content: { "application/json": { schema: ErrorRes } },
+		},
 	},
 });
 const getLinkHandler: RouteHandler<typeof getLinkRoute> = async (c) => {
 	try {
-		await requireUid(c.req.header("authorization") ?? undefined);
-		const doc = null; // TODO: Firestore lookup
-		if (!doc)
-			return c.json({ code: "NOT_FOUND", message: "Link not found" }, 404);
-		return c.json(doc, 200);
-	} catch {
-		return c.json({ code: "UNAUTHORIZED", message: "Invalid token" }, 401);
+		const uid = await requireUid(c.req.header("authorization") ?? undefined);
+		const { id } = c.req.valid("param");
+		try {
+			const link = await linkUC.getLink(uid, id);
+			return c.json(link, 200);
+		} catch (err: unknown) {
+			if (err instanceof Error && err.message === "LINK_NOT_FOUND") {
+				return c.json({ code: "NOT_FOUND", message: "Link not found" }, 404);
+			}
+			throw err;
+		}
+	} catch (e: unknown) {
+		if (e instanceof Error && e.message === "UNAUTHORIZED") {
+			return c.json({ code: "UNAUTHORIZED", message: "Invalid token" }, 401);
+		}
+		return c.json({ code: "INTERNAL", message: "Unexpected error" }, 500);
 	}
 };
 
@@ -207,6 +226,7 @@ const moveRoute = createRoute({
 			content: { "application/json": { schema: MoveCategoryBody } },
 		},
 	},
+	security: [{ bearerAuth: [] }],
 	responses: {
 		200: {
 			description: "変更後のリンクを返却",
@@ -220,31 +240,39 @@ const moveRoute = createRoute({
 			description: "認証エラー",
 			content: { "application/json": { schema: ErrorRes } },
 		},
+		500: {
+			description: "サーバー内部エラー",
+			content: { "application/json": { schema: ErrorRes } },
+		},
 	},
 });
 const moveHandler: RouteHandler<typeof moveRoute> = async (c) => {
 	try {
 		const uid = await requireUid(c.req.header("authorization") ?? undefined);
 		const { id } = c.req.valid("param");
-		const { categoryId } = await c.req.json();
-		return c.json(
-			{
-				id,
-				url: "https://example.com",
-				title: "Example",
-				description: null,
-				imageUrl: null,
-				categoryId,
-				createdAt: new Date().toISOString(),
-				uid,
-			},
-			200,
-		);
-	} catch (e: any) {
-		if (e?.message === "UNAUTHORIZED") {
+		const { categoryId } = (await c.req.json()) as {
+			categoryId: string | null;
+		};
+		try {
+			const link = await linkUC.moveCategory(uid, id, categoryId ?? null);
+			return c.json(link, 200);
+		} catch (err: unknown) {
+			if (err instanceof Error && err.message === "LINK_NOT_FOUND") {
+				return c.json({ code: "NOT_FOUND", message: "Link not found" }, 404);
+			}
+			if (err instanceof Error && err.message === "CATEGORY_NOT_FOUND") {
+				return c.json(
+					{ code: "NOT_FOUND", message: "Category not found" },
+					404,
+				);
+			}
+			throw err;
+		}
+	} catch (e: unknown) {
+		if (e instanceof Error && e.message === "UNAUTHORIZED") {
 			return c.json({ code: "UNAUTHORIZED", message: "Invalid token" }, 401);
 		}
-		return c.json({ code: "NOT_FOUND", message: "Link not found" }, 404);
+		return c.json({ code: "INTERNAL", message: "Unexpected error" }, 500);
 	}
 };
 
@@ -255,6 +283,7 @@ const listCatsRoute = createRoute({
 	summary: "カテゴリ一覧取得",
 	description: "利用可能なカテゴリの一覧と、それぞれのリンク件数を返します。",
 	request: { headers: z.object({ authorization: z.string() }) },
+	security: [{ bearerAuth: [] }],
 	responses: {
 		200: {
 			description: "カテゴリ一覧",
@@ -270,11 +299,9 @@ const listCatsRoute = createRoute({
 });
 const listCatsHandler: RouteHandler<typeof listCatsRoute> = async (c) => {
 	try {
-		await requireUid(c.req.header("authorization") ?? undefined);
-		return c.json(
-			{ items: [{ id: "cat_design", name: "デザイン", count: 12 }] },
-			200,
-		);
+		const uid = await requireUid(c.req.header("authorization") ?? undefined);
+		const items = await catUC.listCategories(uid);
+		return c.json({ items }, 200);
 	} catch {
 		return c.json({ code: "UNAUTHORIZED", message: "Invalid token" }, 401);
 	}
@@ -293,6 +320,7 @@ const createCatRoute = createRoute({
 			content: { "application/json": { schema: CategoryCreateBody } },
 		},
 	},
+	security: [{ bearerAuth: [] }],
 	responses: {
 		201: {
 			description: "作成に成功",
@@ -302,13 +330,28 @@ const createCatRoute = createRoute({
 			description: "認証エラー",
 			content: { "application/json": { schema: ErrorRes } },
 		},
+		409: {
+			description: "重複カテゴリ名",
+			content: { "application/json": { schema: ErrorRes } },
+		},
 	},
 });
 const createCatHandler: RouteHandler<typeof createCatRoute> = async (c) => {
 	try {
-		await requireUid(c.req.header("authorization") ?? undefined);
-		const { name } = await c.req.json();
-		return c.json({ id: "cat_new", name, count: 0 }, 201);
+		const uid = await requireUid(c.req.header("authorization") ?? undefined);
+		const body = (await c.req.json()) as { name: string };
+		try {
+			const created = await catUC.createCategory(uid, body.name);
+			return c.json(created, 201);
+		} catch (err: unknown) {
+			if (err instanceof Error && err.message === "ALREADY_EXISTS") {
+				return c.json(
+					{ code: "ALREADY_EXISTS", message: "Category name already exists" },
+					409,
+				);
+			}
+			throw err;
+		}
 	} catch {
 		return c.json({ code: "UNAUTHORIZED", message: "Invalid token" }, 401);
 	}
@@ -325,6 +368,7 @@ const searchRoute = createRoute({
 		headers: z.object({ authorization: z.string() }),
 		query: SearchQuery,
 	},
+	security: [{ bearerAuth: [] }],
 	responses: {
 		200: {
 			description: "検索結果",
@@ -338,8 +382,10 @@ const searchRoute = createRoute({
 });
 const searchHandler: RouteHandler<typeof searchRoute> = async (c) => {
 	try {
-		await requireUid(c.req.header("authorization") ?? undefined);
-		return c.json({ items: [] }, 200);
+		const uid = await requireUid(c.req.header("authorization") ?? undefined);
+		const { q, limit = 20, cursor } = c.req.valid("query");
+		const items = await linkUC.searchLinks(uid, q, limit, cursor);
+		return c.json({ items }, 200);
 	} catch {
 		return c.json({ code: "UNAUTHORIZED", message: "Invalid token" }, 401);
 	}

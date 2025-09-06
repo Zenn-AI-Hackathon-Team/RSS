@@ -1,4 +1,9 @@
 {
-	"installCommand": "npm ci --include=optional",
-	"buildCommand": "npm run build"
+	"installCommand": "npm install --include=optional",
+	"buildCommand": "npm run build",
+	"build": {
+		"env": {
+			"NAPI_RS_FORCE_WASI": "1"
+		}
+	}
 }

@@ -1,9 +1,8 @@
 "use client";
 import React, { useState } from "react";
 import InboxHeader from "./InboxHeader";
-import MemoItems, {
-  MemoItem,
-} from "../../../common/memoitems/components/MemoItems";
+import InboxList from "./InboxList";
+import { MemoItem } from "../../../../types/memoitem/types";
 
 const InboxContainer: React.FC = () => {
   const [sortBy, setSortBy] = useState("newest");
@@ -75,7 +74,7 @@ const InboxContainer: React.FC = () => {
   return (
     <div className="w-full max-w-4xl mx-auto p-6 bg-gray-900 min-h-screen">
       <InboxHeader sortBy={sortBy} onSortChange={handleSort} />
-      <MemoItems items={items} />
+      <InboxList items={items} />
     </div>
   );
 };

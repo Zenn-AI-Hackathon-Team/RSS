@@ -69,11 +69,11 @@ export default function PostDetailsScreen({
 					/>
 				</div>
 			) : post.provider === "instagram" ? (
-				<div className="border rounded-lg w-full overflow-hidden">
+				<div className="rounded-lg w-full overflow-hidden">
 					<InstagramEmbed url={post.url} hideCaption maxHeight={640} />
 				</div>
 			) : post.provider === "x" && post.tweetId ? (
-				<div className="border rounded-lg w-full overflow-hidden">
+				<div className="rounded-lg w-full overflow-hidden">
 					<ClientTweetCard id={post.tweetId} />
 				</div>
 			) : (

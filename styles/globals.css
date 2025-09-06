@@ -173,7 +173,6 @@
   /* biome-ignore lint/complexity/noImportantStyles: <explanation> */
   --tweet-container-margin: 0 !important;
   --tweet-border: 0;
-  --tweet-bg-color-hover: transparent;
 }
 
 /* instagram embed: remove inner border/shadow/background from the iframe container */

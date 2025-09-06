@@ -18,6 +18,7 @@ import { Eye, EyeOff, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/lib/firebase";
+import { useRouter } from "next/navigation";
 
 interface LoginCardProps {
   onSuccess?: (data: { email: string }) => void;
@@ -30,6 +31,8 @@ const LoginCard: React.FC<LoginCardProps> = ({ onSuccess }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+
+  const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,7 +66,11 @@ const LoginCard: React.FC<LoginCardProps> = ({ onSuccess }) => {
       setSuccess(true);
       onSuccess?.({ email });
 
-      // ここで router.push("/dashboard") など
+      // リダイレクト（既存のまま）
+      if (success) {
+        setTimeout(() => router.push("/"), 1500);
+      }
+      router.push("/");
     } catch (err: any) {
       const code = err?.code as string;
       if (code === "auth/invalid-credential" || code === "auth/wrong-password")
@@ -144,7 +151,7 @@ const LoginCard: React.FC<LoginCardProps> = ({ onSuccess }) => {
             {success && (
               <Alert className="border-green-500 bg-green-50">
                 <AlertDescription className="text-green-700">
-                  ログインに成功しました！
+                  ログインに成功しました！アプリへリダイレクトしています...
                 </AlertDescription>
               </Alert>
             )}
@@ -179,10 +186,6 @@ const LoginCard: React.FC<LoginCardProps> = ({ onSuccess }) => {
             >
               新規登録
             </Link>
-          </div>
-
-          <div className="text-xs text-gray-500 text-center mt-2">
-            デモ用: メール "demo@example.com" / パスワード "password"
           </div>
         </CardFooter>
       </Card>

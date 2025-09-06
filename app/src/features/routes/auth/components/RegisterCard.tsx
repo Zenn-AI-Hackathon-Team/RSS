@@ -29,10 +29,7 @@ interface RegisterCardProps {
   redirectToLogin?: boolean;
 }
 
-const RegisterCard: React.FC<RegisterCardProps> = ({
-  onSuccess,
-  redirectToLogin = true,
-}) => {
+const RegisterCard: React.FC<RegisterCardProps> = ({ onSuccess }) => {
   const router = useRouter();
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
@@ -99,7 +96,7 @@ const RegisterCard: React.FC<RegisterCardProps> = ({
       onSuccess?.({ username, email });
 
       // リダイレクト（既存のまま）
-      if (redirectToLogin) {
+      if (success) {
         setTimeout(() => router.push("/login"), 1500);
       }
     } catch (err: any) {

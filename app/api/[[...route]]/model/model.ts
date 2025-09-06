@@ -47,11 +47,36 @@ export const CreateLinkBody = z
 
 export const ListLinksQuery = z
 	.object({
-		categoryId: z.string().optional(),
-		inbox: z.enum(["true", "false"]).optional(),
-		sort: z.enum(["asc", "desc"]).default("desc").optional(),
-		limit: z.coerce.number().int().min(1).max(100).default(20).optional(),
-		cursor: z.string().optional(),
+		categoryId: z.string().optional().openapi({
+			description:
+				"カテゴリID。'inbox' が 'true' のときは指定しないでください（無視されます）。",
+		}),
+		inbox: z
+			.enum(["true", "false"]) // boolean を文字列で受けるAPI仕様
+			.optional()
+			.openapi({
+				description:
+					"未分類（Inbox）のみを対象にするフラグ。'true' の場合、'categoryId' は無視されます。",
+			}),
+		sort: z
+			.enum(["asc", "desc"])
+			.default("desc")
+			.optional()
+			.openapi({
+				description: "作成日時の並び順。既定は 'desc'（新しい順）。",
+			}),
+		limit: z.coerce
+			.number()
+			.int()
+			.min(1)
+			.max(100)
+			.default(20)
+			.optional()
+			.openapi({ description: "取得件数。1〜100、既定は20。" }),
+		cursor: z.string().optional().openapi({
+			description:
+				"ページネーション用カーソル。前回のレスポンスで取得した最後のアイテムのドキュメントIDを指定してください（startAfter に使用）。",
+		}),
 	})
 	.openapi("ListLinksQuery");
 
@@ -65,9 +90,24 @@ export const MoveCategoryBody = z
 
 export const SearchQuery = z
 	.object({
-		q: z.string().min(1),
-		limit: z.coerce.number().int().min(1).max(100).default(20).optional(),
-		cursor: z.string().optional(),
+		q: z
+			.string()
+			.min(1)
+			.openapi({
+				description: "検索キーワード。タイトル・カテゴリ名を対象にします。",
+			}),
+		limit: z.coerce
+			.number()
+			.int()
+			.min(1)
+			.max(100)
+			.default(20)
+			.optional()
+			.openapi({ description: "取得件数。1〜100、既定は20。" }),
+		cursor: z.string().optional().openapi({
+			description:
+				"ページネーション用カーソル。前回のレスポンスで取得した最後のアイテムのドキュメントIDを指定してください。",
+		}),
 	})
 	.openapi("SearchQuery");
 

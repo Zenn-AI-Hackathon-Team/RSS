@@ -1,6 +1,6 @@
 "use client";
 
-import { Plus } from "lucide-react";
+import { FolderOpen, Plus } from "lucide-react";
 import type React from "react";
 import type { CategoryItem } from "@/app/src/types/categoryItem/types";
 import type { PostItem } from "@/app/src/types/postItem/types";
@@ -21,7 +21,10 @@ const CategoryContainer: React.FC<CategoryContainerProps> = ({
 }) => {
 	return (
 		<div>
-			<h2 className="text-lg font-bold text-slate-800">カテゴリ</h2>
+			<div className="flex items-center space-x-3">
+				<FolderOpen className="w-8 h-8 text-blue-400" />
+				<h1 className="text-3xl font-bold text-black">カテゴリ</h1>
+			</div>
 			<div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-3">
 				{categories
 					.filter((c) => c.id !== "inbox")

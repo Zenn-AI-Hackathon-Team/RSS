@@ -1,7 +1,7 @@
 // CategoryHeader.tsx
 "use client";
 
-import { Check, Inbox, Pencil } from "lucide-react";
+import { Check, FolderOpen, Pencil } from "lucide-react";
 import type React from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,7 +28,7 @@ const CategoryHeader: React.FC<CategoryHeaderProps> = ({
 	return (
 		<div className="flex items-center justify-between mb-6">
 			<div className="flex items-center space-x-3">
-				<Inbox className="w-8 h-8 text-blue-400" />
+				<FolderOpen className="w-8 h-8 text-blue-400" />
 				{isEditMode ? (
 					<div className="flex items-center gap-2">
 						<Input

@@ -26,7 +26,7 @@ export default function ClientPage({ categoryId }: { categoryId: string }) {
 
 	return (
 		<div>
-			<Header title="Category View" />
+			<Header title="Category View" showBack />
 			<CategoryViewContainer memoitems={items} />
 		</div>
 	);

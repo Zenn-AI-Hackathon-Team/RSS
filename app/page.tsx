@@ -1,9 +1,12 @@
+export const dynamic = "force-dynamic";
 import { getServerApi } from "@/app/src/server/getServerApi";
 
 export default async function Page() {
 	const api = getServerApi();
-	// リポ準拠：api.api.healthz（2階層）
 	const health = await (await api.api.healthz.$get()).json();
+
+  // 呼び方のサンプル
+  const sample = await api.api.healthz.$get();
 
 	return (
 		<main className="space-y-4 p-6">

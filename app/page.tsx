@@ -4,10 +4,8 @@ import { getServerApi } from "@/app/src/server/api";
 export default async function Page() {
 	const client = getServerApi();
 	
-	// APIを呼び出す
 	const res = await client.api.healthz.$get()
 
-	// もしAPI呼び出しが失敗したら、エラーを投げる
 	if (!res.ok) {
 		console.error("API call failed:", await res.text());
 		throw new Error("Failed to fetch API");

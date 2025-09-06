@@ -167,3 +167,24 @@
 		@apply bg-background text-foreground;
 	}
 }
+
+/* react-tweet: remove outer margin/border/bg to fit our container */
+.tweet-embed :where(.react-tweet-theme) {
+  /* biome-ignore lint/complexity/noImportantStyles: <explanation> */
+  --tweet-container-margin: 0 !important;
+  --tweet-border: 0;
+  --tweet-bg-color-hover: transparent;
+}
+
+/* instagram embed: remove inner border/shadow/background from the iframe container */
+.ig-embed blockquote.instagram-media {
+  border: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  margin: 0 !important;
+}
+.ig-embed iframe {
+  border: 0 !important;
+  box-shadow: none !important;
+  background: transparent !important;
+}

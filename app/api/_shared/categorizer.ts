@@ -7,6 +7,7 @@
 
 import { config } from "@/app/api/_shared/config";
 import * as categoriesRepo from "@/app/api/repositories/categoriesRepo";
+import * as linksRepo from "@/app/api/repositories/linksRepo";
 import { db, serverTimestamp } from "@/lib/firebaseAdmin";
 
 type Method = "embedding" | "llm" | "none";
@@ -103,7 +104,7 @@ async function ensureCategoryEmbeddings(
 ): Promise<
 	Array<{ id: string; name: string; nameLower: string; embedding: number[] }>
 > {
-	// カテゴリ名の埋め込みを作成/更新し、Firestoreにキャッシュ
+	// カテゴリ名＋（オプションで）カテゴリ内リンクのタイトル/説明を材料に埋め込みを作成し保存
 	const toCompute: { idx: number; text: string }[] = [];
 	const out: Array<{
 		id: string;
@@ -116,15 +117,44 @@ async function ensureCategoryEmbeddings(
 		nameLower: (c.nameLower || c.name || "").toLowerCase(),
 		embedding: c.embedding || [],
 	}));
+
+	// 期待するモデル識別子（例: text-embedding-3-small+cat_examples）
+	const expectedModel = config.enableCategoryExampleEmbedding
+		? `${EMBEDDING_MODEL}+cat_examples`
+		: EMBEDDING_MODEL;
 	for (let i = 0; i < cats.length; i++) {
 		const c = cats[i];
-		if (
+		const needs =
 			!c.embedding ||
 			c.embedding.length === 0 ||
-			c.embeddingModel !== EMBEDDING_MODEL
-		) {
-			toCompute.push({ idx: i, text: c.name });
+			c.embeddingModel !== expectedModel;
+		if (!needs) continue;
+
+		// 入力テキスト構築
+		let text = c.name || "";
+		if (config.enableCategoryExampleEmbedding) {
+			try {
+				const sample = await linksRepo.list(uid, {
+					categoryId: c.id,
+					sort: "desc",
+					limit: config.categoryExampleSampleSize,
+				});
+				const parts: string[] = [];
+				for (const d of sample) {
+					const data = d.data() as any;
+					if (data?.title) parts.push(String(data.title));
+					if (data?.description) parts.push(String(data.description));
+				}
+				if (parts.length > 0) {
+					const joined = parts.join("\n");
+					const limited = joined.slice(0, config.categoryExampleTextMaxChars);
+					text = `${c.name}\n${limited}`;
+				}
+			} catch (e) {
+				// 読み取り失敗時はカテゴリ名のみ
+			}
 		}
+		toCompute.push({ idx: i, text });
 	}
 	if (toCompute.length > 0) {
 		const embeds = await embedBatch(toCompute.map((t) => t.text));
@@ -139,7 +169,7 @@ async function ensureCategoryEmbeddings(
 			batch.push({
 				id: cats[idx].id,
 				embedding: embeds[k],
-				embeddingModel: EMBEDDING_MODEL,
+				embeddingModel: expectedModel,
 			});
 		}
 		// Persist embeddings back to category docs (best-effort)

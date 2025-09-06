@@ -106,12 +106,68 @@ function pickFirst(idx: MetaIndex, keys: string[]): string | null {
 	return null;
 }
 
+async function fetchYouTubeOGP(
+	url: string,
+	opts?: { timeoutMs?: number },
+): Promise<OGPResult | null> {
+	// YouTubeの oEmbed を利用して確実に title / thumbnail を取得
+	// 参考: https://www.youtube.com/oembed?url=<VIDEO_URL>&format=json
+	const timeoutMs = opts?.timeoutMs ?? 6000;
+	let controller: AbortController | null = null;
+	try {
+		const endpoint = new URL("https://www.youtube.com/oembed");
+		endpoint.searchParams.set("url", url);
+		endpoint.searchParams.set("format", "json");
+
+		controller = new AbortController();
+		const id = setTimeout(() => controller?.abort(), timeoutMs);
+		const res = await fetch(endpoint.toString(), {
+			headers: { accept: "application/json" },
+			redirect: "follow",
+			signal: controller.signal,
+		});
+		clearTimeout(id);
+
+		if (!res.ok) return null; // フォールバックへ
+		const data = (await res.json()) as {
+			title?: string;
+			thumbnail_url?: string;
+			author_name?: string;
+		};
+		const title = data.title ?? null;
+		const imageUrl = data.thumbnail_url ?? null;
+		const description = data.author_name ? `by ${data.author_name}` : null;
+		const any = Boolean(title || imageUrl || description);
+		return any
+			? {
+					title,
+					description,
+					imageUrl,
+					provider: "youtube",
+					fetchStatus: title || imageUrl ? "ok" : "partial",
+				}
+			: null;
+	} catch {
+		return null;
+	} finally {
+		try {
+			controller?.abort();
+		} catch {}
+	}
+}
+
 export async function fetchOGP(
 	url: string,
 	opts?: { timeoutMs?: number },
 ): Promise<OGPResult> {
 	// 指定URLへHTTP GETしてOGP情報を抽出
 	const provider = detectProvider(url);
+	// YouTube は oEmbed を優先（高確度・高速）
+	if (provider === "youtube") {
+		const y = await fetchYouTubeOGP(url, opts);
+		if (y) return y;
+		// 失敗時は従来のHTMLパースへフォールバック
+	}
 	const timeoutMs = opts?.timeoutMs ?? 6000;
 	let controller: AbortController | null = null;
 	try {

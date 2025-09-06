@@ -11,11 +11,11 @@ export default function RootLayout({
 }: {
 	children: React.ReactNode;
 }) {
-  return (
-    <html lang="ja">
-      <body>
-        <AuthProvider>{children}</AuthProvider>
-      </body>
-    </html>
-  );
+	return (
+		<html lang="ja">
+			<body className="sm: mx-4">
+				<AuthProvider>{children}</AuthProvider>
+			</body>
+		</html>
+	);
 }

@@ -36,7 +36,7 @@ const CategoryContainer: React.FC<CategoryContainerProps> = ({
 				<button
 					type="button"
 					onClick={onAddNewCategory}
-					className="flex flex-col items-center justify-center border-2 border-dashed rounded-lg cursor-pointer border-slate-300 text-slate-500 hover:border-indigo-500 hover:text-indigo-500"
+					className="flex flex-col items-center justify-center h-25 border-2 border-dashed rounded-lg cursor-pointer border-slate-300 text-slate-500 hover:border-indigo-500 hover:text-indigo-500"
 				>
 					<Plus className="w-6 h-6" />
 					<p className="mt-1 text-sm font-semibold">カテゴリを追加</p>

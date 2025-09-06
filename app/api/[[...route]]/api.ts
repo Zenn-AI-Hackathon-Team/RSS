@@ -98,8 +98,8 @@ const createLinkHandler: RouteHandler<typeof createLinkRoute> = async (c) => {
 		const { url } = await c.req.json<{ url: string }>();
 		const result = await linkUC.createLink(uid, url);
 		return c.json(result.link, result.created ? 201 : 200);
-	} catch (e: any) {
-		if (e?.message === "UNAUTHORIZED") {
+	} catch (e: unknown) {
+		if (e instanceof Error && e.message === "UNAUTHORIZED") {
 			return c.json({ code: "UNAUTHORIZED", message: "Invalid token" }, 401);
 		}
 		return c.json({ code: "INTERNAL", message: "Unexpected error" }, 500);
@@ -151,8 +151,8 @@ const listLinksHandler: RouteHandler<typeof listLinksRoute> = async (c) => {
 			cursor,
 		});
 		return c.json({ items }, 200);
-	} catch (e: any) {
-		if (e?.message === "UNAUTHORIZED") {
+	} catch (e: unknown) {
+		if (e instanceof Error && e.message === "UNAUTHORIZED") {
 			return c.json({ code: "UNAUTHORIZED", message: "Invalid token" }, 401);
 		}
 		return c.json({ code: "INTERNAL", message: "Unexpected error" }, 500);
@@ -197,14 +197,14 @@ const getLinkHandler: RouteHandler<typeof getLinkRoute> = async (c) => {
 		try {
 			const link = await linkUC.getLink(uid, id);
 			return c.json(link, 200);
-		} catch (err: any) {
-			if (err?.message === "LINK_NOT_FOUND") {
+		} catch (err: unknown) {
+			if (err instanceof Error && err.message === "LINK_NOT_FOUND") {
 				return c.json({ code: "NOT_FOUND", message: "Link not found" }, 404);
 			}
 			throw err;
 		}
-	} catch (e: any) {
-		if (e?.message === "UNAUTHORIZED") {
+	} catch (e: unknown) {
+		if (e instanceof Error && e.message === "UNAUTHORIZED") {
 			return c.json({ code: "UNAUTHORIZED", message: "Invalid token" }, 401);
 		}
 		return c.json({ code: "INTERNAL", message: "Unexpected error" }, 500);
@@ -256,11 +256,11 @@ const moveHandler: RouteHandler<typeof moveRoute> = async (c) => {
 		try {
 			const link = await linkUC.moveCategory(uid, id, categoryId ?? null);
 			return c.json(link, 200);
-		} catch (err: any) {
-			if (err?.message === "LINK_NOT_FOUND") {
+		} catch (err: unknown) {
+			if (err instanceof Error && err.message === "LINK_NOT_FOUND") {
 				return c.json({ code: "NOT_FOUND", message: "Link not found" }, 404);
 			}
-			if (err?.message === "CATEGORY_NOT_FOUND") {
+			if (err instanceof Error && err.message === "CATEGORY_NOT_FOUND") {
 				return c.json(
 					{ code: "NOT_FOUND", message: "Category not found" },
 					404,
@@ -268,8 +268,8 @@ const moveHandler: RouteHandler<typeof moveRoute> = async (c) => {
 			}
 			throw err;
 		}
-	} catch (e: any) {
-		if (e?.message === "UNAUTHORIZED") {
+	} catch (e: unknown) {
+		if (e instanceof Error && e.message === "UNAUTHORIZED") {
 			return c.json({ code: "UNAUTHORIZED", message: "Invalid token" }, 401);
 		}
 		return c.json({ code: "INTERNAL", message: "Unexpected error" }, 500);
@@ -343,8 +343,8 @@ const createCatHandler: RouteHandler<typeof createCatRoute> = async (c) => {
 		try {
 			const created = await catUC.createCategory(uid, body.name);
 			return c.json(created, 201);
-		} catch (err: any) {
-			if (err?.message === "ALREADY_EXISTS") {
+		} catch (err: unknown) {
+			if (err instanceof Error && err.message === "ALREADY_EXISTS") {
 				return c.json(
 					{ code: "ALREADY_EXISTS", message: "Category name already exists" },
 					409,

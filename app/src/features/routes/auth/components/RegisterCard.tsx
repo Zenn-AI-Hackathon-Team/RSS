@@ -10,7 +10,7 @@ import { CheckCircle2, Eye, EyeOff, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type React from "react";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -38,6 +38,10 @@ const RegisterCard: React.FC<RegisterCardProps> = ({ onSuccess }) => {
 	const [confirmPassword, setConfirmPassword] = useState("");
 	const [showPassword, setShowPassword] = useState(false);
 	const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+	const usernameId = useId();
+	const emailId = useId();
+	const passwordId = useId();
+	const confirmPasswordId = useId();
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState("");
 	const [success, setSuccess] = useState(false);
@@ -100,16 +104,20 @@ const RegisterCard: React.FC<RegisterCardProps> = ({ onSuccess }) => {
 			if (success) {
 				setTimeout(() => router.push("/login"), 1500);
 			}
-		} catch (err: any) {
+		} catch (err: unknown) {
 			// よくあるエラーを日本語に
-			const code = err?.code as string;
-			if (code === "auth/email-already-in-use")
-				setError("このメールアドレスは既に使用されています。");
-			else if (code === "auth/invalid-email")
-				setError("メールアドレスの形式が正しくありません。");
-			else if (code === "auth/weak-password")
-				setError("パスワードが弱すぎます（6文字以上を推奨）。");
-			else setError("登録に失敗しました。時間をおいて再度お試しください。");
+			if (err && typeof err === "object" && "code" in err) {
+				const code = (err as { code: string }).code;
+				if (code === "auth/email-already-in-use")
+					setError("このメールアドレスは既に使用されています。");
+				else if (code === "auth/invalid-email")
+					setError("メールアドレスの形式が正しくありません。");
+				else if (code === "auth/weak-password")
+					setError("パスワードが弱すぎます（6文字以上を推奨）。");
+				else setError("登録に失敗しました。時間をおいて再度お試しください。");
+			} else {
+				setError("登録に失敗しました。時間をおいて再度お試しください。");
+			}
 		} finally {
 			setIsLoading(false);
 		}
@@ -147,9 +155,9 @@ const RegisterCard: React.FC<RegisterCardProps> = ({ onSuccess }) => {
 				<CardContent>
 					<form onSubmit={handleSubmit} className="space-y-4">
 						<div className="space-y-2">
-							<Label htmlFor="username">ユーザー名</Label>
+							<Label htmlFor={usernameId}>ユーザー名</Label>
 							<Input
-								id="username"
+								id={usernameId}
 								type="text"
 								placeholder="3文字以上で入力"
 								value={username}
@@ -161,9 +169,9 @@ const RegisterCard: React.FC<RegisterCardProps> = ({ onSuccess }) => {
 						</div>
 
 						<div className="space-y-2">
-							<Label htmlFor="email">メールアドレス</Label>
+							<Label htmlFor={emailId}>メールアドレス</Label>
 							<Input
-								id="email"
+								id={emailId}
 								type="email"
 								placeholder="example@email.com"
 								value={email}
@@ -175,10 +183,10 @@ const RegisterCard: React.FC<RegisterCardProps> = ({ onSuccess }) => {
 						</div>
 
 						<div className="space-y-2">
-							<Label htmlFor="password">パスワード</Label>
+							<Label htmlFor={passwordId}>パスワード</Label>
 							<div className="relative">
 								<Input
-									id="password"
+									id={passwordId}
 									type={showPassword ? "text" : "password"}
 									placeholder="6文字以上で入力"
 									value={password}
@@ -233,10 +241,10 @@ const RegisterCard: React.FC<RegisterCardProps> = ({ onSuccess }) => {
 						</div>
 
 						<div className="space-y-2">
-							<Label htmlFor="confirmPassword">パスワード（確認）</Label>
+							<Label htmlFor={confirmPasswordId}>パスワード（確認）</Label>
 							<div className="relative">
 								<Input
-									id="confirmPassword"
+									id={confirmPasswordId}
 									type={showConfirmPassword ? "text" : "password"}
 									placeholder="パスワードを再入力"
 									value={confirmPassword}

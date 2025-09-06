@@ -6,7 +6,7 @@ import { Eye, EyeOff, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import type React from "react";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,10 +30,11 @@ const LoginCard: React.FC<LoginCardProps> = ({ onSuccess }) => {
 	const [password, setPassword] = useState("");
 	const [showPassword, setShowPassword] = useState(false);
 	const [isLoading, setIsLoading] = useState(false);
-	const [error, setError] = useState("");
+	const [error, setError] = useState<string | null>(null);
 	const [success, setSuccess] = useState(false);
-
 	const router = useRouter();
+	const emailId = useId();
+	const passwordId = useId();
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
@@ -72,13 +73,21 @@ const LoginCard: React.FC<LoginCardProps> = ({ onSuccess }) => {
 				setTimeout(() => router.push("/"), 1500);
 			}
 			router.push("/");
-		} catch (err: any) {
-			const code = err?.code as string;
-			if (code === "auth/invalid-credential" || code === "auth/wrong-password")
-				setError("メールアドレスまたはパスワードが正しくありません");
-			else if (code === "auth/user-not-found")
-				setError("このメールアドレスのアカウントは存在しません");
-			else setError("ログインに失敗しました。時間をおいて再度お試しください。");
+		} catch (err: unknown) {
+			if (err && typeof err === "object" && "code" in err) {
+				const code = (err as { code: string }).code;
+				if (
+					code === "auth/invalid-credential" ||
+					code === "auth/wrong-password"
+				)
+					setError("メールアドレスまたはパスワードが正しくありません");
+				else if (code === "auth/user-not-found")
+					setError("このメールアドレスのアカウントは存在しません");
+				else
+					setError("ログインに失敗しました。時間をおいて再度お試しください。");
+			} else {
+				setError("ログインに失敗しました。時間をおいて再度お試しください。");
+			}
 		} finally {
 			setIsLoading(false);
 		}
@@ -102,9 +111,9 @@ const LoginCard: React.FC<LoginCardProps> = ({ onSuccess }) => {
 				<CardContent>
 					<form onSubmit={handleSubmit} className="space-y-4">
 						<div className="space-y-2">
-							<Label htmlFor="email">メールアドレス</Label>
+							<Label htmlFor={emailId}>メールアドレス</Label>
 							<Input
-								id="email"
+								id={emailId}
 								type="email"
 								placeholder="example@email.com"
 								value={email}
@@ -116,10 +125,10 @@ const LoginCard: React.FC<LoginCardProps> = ({ onSuccess }) => {
 						</div>
 
 						<div className="space-y-2">
-							<Label htmlFor="password">パスワード</Label>
+							<Label htmlFor={passwordId}>パスワード</Label>
 							<div className="relative">
 								<Input
-									id="password"
+									id={passwordId}
 									type={showPassword ? "text" : "password"}
 									placeholder="パスワードを入力"
 									value={password}

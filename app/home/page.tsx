@@ -1,4 +1,3 @@
-import React from "react";
 import InboxContainer from "../src/features/routes/inbox/components/InboxContainer";
 
 const page = () => {

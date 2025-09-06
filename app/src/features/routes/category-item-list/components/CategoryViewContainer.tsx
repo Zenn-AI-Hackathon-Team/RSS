@@ -2,7 +2,7 @@
 "use client";
 
 import { Trash2 } from "lucide-react";
-import React, { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { MemoItem } from "../../../../types/memoitem/types";
 import CategoryHeader from "./CategoryHeader";

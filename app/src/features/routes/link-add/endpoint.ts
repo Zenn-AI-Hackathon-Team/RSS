@@ -14,23 +14,45 @@ type LinkType = z.infer<typeof Link>;
  * @returns 保存されたリンク情報
  */
 export const saveLink = async (url: string, user: User): Promise<LinkType> => {
-	const token = await user.getIdToken();
+	try {
+		if (!url || typeof url !== "string") {
+			throw new Error("有効なURLを入力してください");
+		}
 
-	const response = await client.api.links.$post(
-		{ json: { url } },
-		{
-			headers: {
-				authorization: token,
+		if (!user) {
+			throw new Error("ユーザー情報が必要です");
+		}
+
+		const token = await user.getIdToken();
+
+		if (!token) {
+			throw new Error("ユーザーが認証されていません");
+		}
+
+		const response = await client.api.links.$post(
+			{ json: { url } },
+			{
+				headers: {
+					authorization: `Bearer ${token}`,
+				},
 			},
-		},
-	);
+		);
 
-	if (!response.ok) {
-		const errorData = await response.json();
-		throw new Error(errorData.message || "リンクの保存に失敗しました");
+		if (!response.ok) {
+			const errorData = await response.json();
+			throw new Error(errorData.message || "リンクの保存に失敗しました");
+		}
+
+		return await response.json();
+	} catch (error) {
+		console.error("saveLink関数でエラーが発生しました:", error);
+
+		if (error instanceof Error) {
+			throw error;
+		}
+
+		throw new Error("リンクの保存中に予期しないエラーが発生しました");
 	}
-
-	return await response.json();
 };
 
 /**

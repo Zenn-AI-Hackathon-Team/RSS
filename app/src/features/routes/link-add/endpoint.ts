@@ -67,7 +67,7 @@ export const transformLinkToPost = (linkData: LinkType): PostItem => {
 		url: linkData.url,
 		thumbnail:
 			linkData.imageUrl ||
-			"https://placehold.co/400x300/gray/white?text=No+Image",
+			"https://images.unsplash.com/photo-1557804506-669a67965ba0?w=400&h=300&fit=crop&crop=center",
 		savedDate: linkData.createdAt
 			? new Date(linkData.createdAt).toISOString().split("T")[0]
 			: new Date().toISOString().split("T")[0],

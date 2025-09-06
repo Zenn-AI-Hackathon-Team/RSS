@@ -114,7 +114,6 @@ const listLinksRoute = createRoute({
 	description:
 		"保存済みリンクの一覧を取得します。カテゴリや未分類のフィルタリング、並び順を指定できます。",
 	request: {
-		headers: z.object({ authorization: z.string() }),
 		query: ListLinksQuery,
 	},
 	security: [{ bearerAuth: [] }],
@@ -167,7 +166,6 @@ const getLinkRoute = createRoute({
 	description:
 		"指定したリンク ID の詳細情報（タイトル、OGP画像、カテゴリなど）を返します。",
 	request: {
-		headers: z.object({ authorization: z.string() }),
 		params: z.object({ id: z.string().describe("リンクのID") }),
 	},
 	security: [{ bearerAuth: [] }],
@@ -219,7 +217,6 @@ const moveRoute = createRoute({
 	description:
 		"リンクを別のカテゴリへ移動します。`categoryId` を null にすると未分類 (Inbox) に移動します。",
 	request: {
-		headers: z.object({ authorization: z.string() }),
 		params: z.object({ id: z.string().describe("リンクのID") }),
 		body: {
 			required: true,
@@ -314,7 +311,6 @@ const createCatRoute = createRoute({
 	summary: "カテゴリ作成",
 	description: "新しいカテゴリを作成します。",
 	request: {
-		headers: z.object({ authorization: z.string() }),
 		body: {
 			required: true,
 			content: { "application/json": { schema: CategoryCreateBody } },
@@ -365,7 +361,6 @@ const searchRoute = createRoute({
 	description:
 		"タイトルやカテゴリ名を対象に検索を行います。結果は関連度順に返されます。",
 	request: {
-		headers: z.object({ authorization: z.string() }),
 		query: SearchQuery,
 	},
 	security: [{ bearerAuth: [] }],

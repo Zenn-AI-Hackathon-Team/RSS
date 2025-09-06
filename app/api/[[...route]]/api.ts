@@ -62,7 +62,7 @@ const createLinkRoute = createRoute({
 	path: "/links",
 	summary: "リンクを保存",
 	description:
-		"URLを送信すると OGP を取得して保存します。既存リンクがある場合は既存データを返し、存在しなければ新規作成します。",
+		"URLを送信すると OGP を取得して保存します。既存リンクがある場合は既存データを返し、存在しなければ新規作成する。その後、カテゴリとその中にすでに存在しているリンクの情報から、どのカテゴリに割り振るのかをAIで判断し、実際に割り振る。",
 	request: {
 		body: {
 			required: true,

@@ -1,9 +1,0 @@
-{
-	"installCommand": "rm -rf node_modules && npm install --include=optional",
-	"buildCommand": "NAPI_RS_FORCE_WASI=1 npm run build",
-	"build": {
-		"env": {
-			"NAPI_RS_FORCE_WASI": "1"
-		}
-	}
-}

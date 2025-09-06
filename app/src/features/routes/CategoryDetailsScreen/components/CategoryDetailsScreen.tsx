@@ -2,6 +2,8 @@
 
 import Image from "next/image";
 import { useId, useState } from "react";
+// import { X, Plus } from "lucide-react";
+import type { CategoryItem } from "@/app/src/types/categoryItem/types";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 // import { Input } from "@/components/ui/input";
@@ -14,8 +16,6 @@ import {
 	SelectValue,
 } from "@/components/ui/select";
 
-// import { X, Plus } from "lucide-react";
-
 // --- 型定義 ---
 interface Post {
 	id: string;
@@ -24,14 +24,14 @@ interface Post {
 	thumbnail: string;
 	categoryId: string;
 	tags: string[];
+	tweetId?: string | null;
+	provider?: "youtube" | "x" | "instagram" | "generic";
+	videoId?: string | null;
 }
-interface Category {
-	id: string;
-	name: string;
-}
+
 interface PostDetailsScreenProps {
 	post: Post;
-	categories: Category[];
+	categories: CategoryItem[];
 	onCategoryChange: (postId: string, newCategoryId: string) => void;
 	onTagsChange: (postId: string, newTags: string[]) => void;
 }
@@ -94,9 +94,9 @@ export default function PostDetailsScreen({
                 <Label>タグ</Label>
                 <div className="flex flex-wrap items-center gap-2">
                     {post.tags.map(tag => (
-                        <Badge key={tag} variant="secondary" className="text-base py-1">
+                        <Badge key={tag} variant="secondary" className="py-1 text-base">
                             {tag}
-                            <button onClick={() => onTagsChange(post.id, post.tags.filter(t => t !== tag))} className="ml-2 rounded-full hover:bg-black/10 p-0.5">
+                            <button onClick={() => onTagsChange(post.id, post.tags.filter(t => t !== tag))} className="hover:bg-black/10 ml-2 p-0.5 rounded-full">
                                 <X size={12} />
                             </button>
                         </Badge>
@@ -104,12 +104,12 @@ export default function PostDetailsScreen({
                     <div className="relative flex items-center">
                         <Input 
                             placeholder="タグを追加"
-                            className="h-9 w-32"
+                            className="w-32 h-9"
                             value={newTag}
                             onChange={(e) => setNewTag(e.target.value)}
                             onKeyDown={(e) => e.key === 'Enter' && addTag()}
                         />
-                         <Button type="button" size="icon" variant="ghost" className="absolute right-0 h-9 w-9" onClick={addTag}>
+                         <Button type="button" size="icon" variant="ghost" className="right-0 absolute w-9 h-9" onClick={addTag}>
                             <Plus size={16} />
                         </Button>
                     </div>

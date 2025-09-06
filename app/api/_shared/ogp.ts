@@ -1,4 +1,6 @@
 // OGP情報の取得と簡易パース
+import { config } from "@/app/api/_shared/config";
+
 // - HTMLから og:title/description/image と <title> を抽出
 // - 画像URLは相対→絶対へ解決
 // - プロバイダはドメインで判定
@@ -156,6 +158,118 @@ async function fetchYouTubeOGP(
 	}
 }
 
+async function fetchInstagramOGP(
+	url: string,
+	opts?: { timeoutMs?: number },
+): Promise<OGPResult | null> {
+	if (!config.enableInstagramOEmbed) return null;
+	// アクセストークンの用意（長期トークン優先 → APP_ID|APP_SECRET）
+	const accessToken =
+		config.fbAccessToken ||
+		(config.fbAppId && config.fbAppSecret
+			? `${config.fbAppId}|${config.fbAppSecret}`
+			: "");
+	if (!accessToken) return null;
+
+	const timeoutMs = opts?.timeoutMs ?? 6000;
+	let controller: AbortController | null = null;
+	try {
+		// Try the latest stable first, then older fallback
+		const vLatest = "v20.0";
+		const endpoint = new URL(
+			`https://graph.facebook.com/${vLatest}/instagram_oembed`,
+		);
+		endpoint.searchParams.set("url", url);
+		endpoint.searchParams.set("access_token", accessToken);
+		// スクリプト省略（必要に応じて付け外し）
+		endpoint.searchParams.set("omitscript", "true");
+
+		controller = new AbortController();
+		const id = setTimeout(() => controller?.abort(), timeoutMs);
+		const res = await fetch(endpoint.toString(), {
+			headers: { accept: "application/json" },
+			redirect: "follow",
+			signal: controller.signal,
+		});
+		clearTimeout(id);
+
+		if (!res.ok) {
+			// fallback to v17.0 once
+			try {
+				const ep2 = new URL(
+					`https://graph.facebook.com/v17.0/instagram_oembed`,
+				);
+				ep2.searchParams.set("url", url);
+				ep2.searchParams.set("access_token", accessToken);
+				ep2.searchParams.set("omitscript", "true");
+				const r2 = await fetch(ep2.toString(), {
+					headers: { accept: "application/json" },
+					redirect: "follow",
+					signal: controller!.signal,
+				});
+				if (!r2.ok) {
+					let body = "";
+					try {
+						body = await r2.text();
+					} catch {}
+					console.warn(
+						`[ogp.instagram] oEmbed failed status=${r2.status} body=${body.slice(0, 120)}`,
+					);
+					return null;
+				}
+				const data = (await r2.json()) as {
+					author_name?: string;
+					thumbnail_url?: string;
+					width?: number;
+					height?: number;
+					html?: string;
+				};
+				const title = data.author_name ?? null;
+				const description = null;
+				const imageUrl = data.thumbnail_url ?? null;
+				const any = Boolean(title || imageUrl);
+				return any
+					? {
+							title,
+							description,
+							imageUrl,
+							provider: "instagram",
+							fetchStatus: imageUrl ? "ok" : "partial",
+						}
+					: null;
+			} catch {
+				return null;
+			}
+		}
+		const data = (await res.json()) as {
+			author_name?: string;
+			thumbnail_url?: string;
+			width?: number;
+			height?: number;
+			html?: string;
+		};
+		const title = data.author_name ?? null;
+		const description = null; // oEmbedではキャプション未提供
+		const imageUrl = data.thumbnail_url ?? null;
+		const any = Boolean(title || imageUrl);
+		return any
+			? {
+					title,
+					description,
+					imageUrl,
+					provider: "instagram",
+					fetchStatus: imageUrl ? "ok" : "partial",
+				}
+			: null;
+	} catch {
+		return null;
+	} finally {
+		try {
+			controller?.abort();
+		} catch {}
+	}
+}
+
 export async function fetchOGP(
 	url: string,
 	opts?: { timeoutMs?: number },
@@ -166,6 +280,12 @@ export async function fetchOGP(
 	if (provider === "youtube") {
 		const y = await fetchYouTubeOGP(url, opts);
 		if (y) return y;
+		// 失敗時は従来のHTMLパースへフォールバック
+	}
+	// Instagram は oEmbed を優先（アクセストークン必要）
+	if (provider === "instagram") {
+		const ig = await fetchInstagramOGP(url, opts);
+		if (ig) return ig;
 		// 失敗時は従来のHTMLパースへフォールバック
 	}
 	const timeoutMs = opts?.timeoutMs ?? 6000;

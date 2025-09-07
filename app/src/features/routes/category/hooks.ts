@@ -132,13 +132,33 @@ export const useNavigation = () => {
 /**
  * ホームページ全体のロジックを統合するカスタムフック
  */
-export const useHomePage = (user: User | null) => {
+export const useHomePage = (
+	user: User | null,
+	inboxRefreshFn?: () => Promise<void>,
+) => {
 	const { posts, addPost } = usePosts();
 	const { categories, loading, error, handleAddNewCategory, fetchCategories } =
 		useCategories();
 	const { handleSearchResultClick, handlePostClick, handleCategoryClick } =
 		useNavigation();
-	const { handleSaveLink } = useLinkSaver(user, addPost);
+
+	// リンク保存完了時のコールバック - カテゴリ一覧とInboxを再取得
+	const handleSaveLinkComplete = async (post: PostItem) => {
+		// カテゴリに振り分けられた場合、カテゴリ一覧を再取得してカウントを更新
+		if (post.categoryId && post.categoryId !== "inbox") {
+			await fetchCategories();
+		}
+		// Inboxに追加された場合またはどのカテゴリに追加されても、Inboxの更新を実行
+		if (inboxRefreshFn) {
+			await inboxRefreshFn();
+		}
+	};
+
+	const { handleSaveLink } = useLinkSaver(
+		user,
+		addPost,
+		handleSaveLinkComplete,
+	);
 
 	return {
 		// データ
@@ -153,5 +173,37 @@ export const useHomePage = (user: User | null) => {
 		handlePostClick,
 		handleCategoryClick,
 		fetchCategories,
+	};
+};
+
+/**
+ * カテゴリページ用のカスタムフック
+ */
+export const useCategoryPage = (
+	user: User | null,
+	categoryId: string,
+	onRefresh?: () => void,
+) => {
+	const { posts, addPost } = usePosts();
+
+	// リンク保存完了時のコールバック - そのカテゴリに追加された場合リフレッシュ
+	const handleSaveLinkComplete = async (post: PostItem) => {
+		// 現在のカテゴリに振り分けられた場合、リストを再取得
+		if (post.categoryId === categoryId && onRefresh) {
+			onRefresh();
+		}
+	};
+
+	const { handleSaveLink } = useLinkSaver(
+		user,
+		addPost,
+		handleSaveLinkComplete,
+	);
+
+	return {
+		// データ
+		posts,
+		// ハンドラー
+		handleSaveLink,
 	};
 };

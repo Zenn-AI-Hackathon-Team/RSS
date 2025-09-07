@@ -1,114 +1,91 @@
-"use client"; // ユーザー操作を扱うため、クライアントコンポーネントとして宣言
+"use client";
 
-import { Plus } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { useState } from "react";
-
-// --- 作成したUIコンポーネントをインポート ---
-// ファイルの階層に合わせて相対パスを修正
-import { CategoryCard } from "./src/features/routes/CategoryCard/components/CategoryCard";
-import { SearchBox } from "./src/features/routes/CategoryCard/components/SearchBox"; // SearchBoxをインポート
-
-// --- モックデータ ---
-const initialPosts = [
-	{
-		id: "p1",
-		title: "Reactの新しい状態管理ライブラリについて",
-		url: "#",
-		thumbnail: "https://placehold.co/400x300/6366f1/ffffff?text=React",
-		savedDate: "2025-09-03",
-		categoryId: "4",
-		tags: ["react", "frontend", "javascript"],
-	},
-	{
-		id: "p2",
-		title: "最高のUXを実現するためのデザイン原則10選",
-		url: "#",
-		thumbnail: "https://placehold.co/400x300/ec4899/ffffff?text=UX/UI",
-		savedDate: "2025-09-02",
-		categoryId: "1",
-		tags: ["ui", "ux", "design"],
-	},
-	{
-		id: "p3",
-		title: "知らないと損する、次世代AIツールの活用法",
-		url: "#",
-		thumbnail: "https://placehold.co/400x300/8b5cf6/ffffff?text=AI",
-		savedDate: "2025-09-04",
-		categoryId: "inbox",
-		tags: ["ai", "productivity"],
-	},
-];
-const initialCategories = [
-	{ id: "inbox", name: "Inbox" },
-	{ id: "1", name: "仕事のアイデア" },
-	{ id: "2", name: "読みたい記事" },
-	{ id: "3", name: "旅行の計画" },
-	{ id: "4", name: "技術メモ" },
-	{ id: "5", name: "お気に入りレシピ" },
-];
+import { useEffect, useRef, useState } from "react";
+import GettingStartedModal from "@/app/src/features/onboarding/components/GettingStartedModal";
+import CategoryContainer from "@/app/src/features/routes/category/components/CategoryContainer";
+import { useHomePage } from "@/app/src/features/routes/category/hooks";
+import { AddButton } from "@/app/src/features/routes/link-add/components/AddButton";
+import { SearchBox } from "@/app/src/features/routes/search/components/SearchBox";
+import { useAuth } from "@/app/src/providers/AuthProvider";
+import InboxFetcher, {
+	type InboxFetcherRef,
+} from "./src/features/routes/inbox/components/InboxFetcher";
 
 export default function Page() {
-	const router = useRouter(); // ページ遷移用のフック
+	const { user } = useAuth();
+	const inboxRef = useRef<InboxFetcherRef>(null);
+	const [showOnboarding, setShowOnboarding] = useState(false);
 
-	const [posts, _setPosts] = useState(initialPosts);
-	const [categories, setCategories] = useState(initialCategories);
+	// show only on first login per user (localStorage-based)
+	useEffect(() => {
+		if (!user) return;
+		try {
+			const key = `onboardingSeen:${user.uid}`;
+			const seen =
+				typeof window !== "undefined" ? localStorage.getItem(key) : null;
+			if (!seen) {
+				setShowOnboarding(true);
+				localStorage.setItem(key, "true");
+			}
+		} catch {}
+	}, [user]);
 
-	const onAddNewCategory = () => {
-		const newCategoryName = prompt("新しいカテゴリ名:");
-		if (
-			newCategoryName &&
-			!categories.find((c) => c.name === newCategoryName)
-		) {
-			setCategories([
-				...categories,
-				{ id: Date.now().toString(), name: newCategoryName },
-			]);
-		} else if (newCategoryName) {
-			alert("そのカテゴリは既に存在します。");
+	// Inbox更新関数
+	const refreshInbox = async () => {
+		if (inboxRef.current) {
+			await inboxRef.current.refresh();
 		}
 	};
 
-	/**
-	 * SearchBox内で検索結果がクリックされたときに呼び出される関数
-	 * @param postId - クリックされた投稿のID
-	 */
-	const handleSearchResultClick = (postId: string) => {
-		router.push(`/post/${postId}`);
-	};
+	const {
+		posts,
+		categories,
+		loading,
+		error,
+		handleAddNewCategory,
+		handleSaveLink,
+		handlePostClick,
+		handleCategoryClick,
+		fetchCategories,
+	} = useHomePage(user, refreshInbox);
 
 	return (
 		<main className="relative min-h-screen p-4 space-y-8">
-			{/* SearchBoxに投稿データ、カテゴリデータ、クリック時の処理を渡す */}
+			{/* Onboarding modal */}
+			<GettingStartedModal
+				open={showOnboarding}
+				onClose={() => setShowOnboarding(false)}
+			/>
+
+			{/* Persistent Help button (bottom-left) */}
+			<button
+				type="button"
+				onClick={() => setShowOnboarding(true)}
+				className="fixed bottom-4 left-4 z-40 flex items-center gap-2 rounded-full border bg-white px-4 py-2 shadow hover:shadow-md text-slate-700"
+				aria-label="ヘルプを開く"
+				title="ヘルプ"
+			>
+				{/* Use a small image for the help icon if needed later; placeholder text for now */}
+				<span className="text-sm font-medium">ヘルプ</span>
+			</button>
 			<SearchBox
 				posts={posts}
 				categories={categories}
-				onResultClick={handleSearchResultClick}
+				onResultClick={handlePostClick}
 			/>
 
-			<div>
-				<h2 className="text-lg font-bold text-slate-800">カテゴリ</h2>
-				<div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-3">
-					{categories
-						.filter((c) => c.id !== "inbox")
-						.map((cat) => (
-							// CategoryCardコンポーネントを使用
-							<CategoryCard
-								key={cat.id}
-								title={cat.name}
-								count={posts.filter((p) => p.categoryId === cat.id).length}
-								onClick={() => router.push(`/category/${cat.id}`)}
-							/>
-						))}
-					<button
-						type="button"
-						className="flex flex-col items-center justify-center border-2 border-dashed rounded-lg cursor-pointer border-slate-300 text-slate-500 hover:border-indigo-500 hover:text-indigo-500"
-					>
-						<Plus className="w-6 h-6" />
-						<p className="mt-1 text-sm font-semibold">カテゴリを追加</p>
-					</button>
-				</div>
-			</div>
+			<CategoryContainer
+				categories={categories}
+				posts={posts}
+				onCategoryClick={handleCategoryClick}
+				onAddNewCategory={handleAddNewCategory}
+				loading={loading}
+				error={error}
+			/>
+			<hr className="border-2 border-slate-200"></hr>
+
+			<InboxFetcher ref={inboxRef} />
+			<AddButton onSubmit={handleSaveLink} />
 		</main>
 	);
 }

@@ -2,87 +2,94 @@
 "use client";
 
 import { Trash2 } from "lucide-react";
-import React, { useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { useAuth } from "@/app/src/providers/AuthProvider";
 import { Button } from "@/components/ui/button";
 import type { MemoItem } from "../../../../types/memoitem/types";
+import { getCategories } from "../../category/endpoint";
 import CategoryHeader from "./CategoryHeader";
 import CategoryItemList from "./CategoryItemList";
 
-const CategoryViewContainer = () => {
-	const [sortBy, setSortBy] = useState("newest");
-	const [categoryName, setCategoryName] = useState("旅行");
-	const [isEditMode, setIsEditMode] = useState(false);
-	const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+type Props = {
+	memoitems: MemoItem[];
+	categoryId?: string;
+	loading?: boolean;
+	hasMore?: boolean;
+	sort?: string;
+	onSortChange?: (sort: string) => void;
+	onLoadMore?: () => void;
+	onRefresh?: () => void;
+};
 
-	const [items, setItems] = useState<MemoItem[]>([
-		{
-			id: 1,
-			title: "Web3時代の新しいビジネスモデル考察",
-			date: "2025-09-05",
-			category: "Web3",
-			color: "bg-orange-500",
-			icon: "blocks",
-		},
-		{
-			id: 2,
-			title: "知らないと損する、次世代AIツールの活用法",
-			date: "2025-09-04",
-			category: "AI",
-			color: "bg-purple-500",
-			icon: "brain",
-		},
-		{
-			id: 3,
-			title: "スタートアップの資金調達戦略2025",
-			date: "2025-09-03",
-			category: "Startup",
-			color: "bg-blue-500",
-			icon: "trending",
-		},
-		{
-			id: 4,
-			title: "リモートワーク時代のチームマネジメント",
-			date: "2025-09-02",
-			category: "Management",
-			color: "bg-green-500",
-			icon: "users",
-		},
-	]);
+const CategoryViewContainer: React.FC<Props> = ({
+	memoitems,
+	categoryId,
+	loading = false,
+	hasMore = false,
+	sort = "newest",
+	onSortChange,
+	onLoadMore,
+	onRefresh,
+}) => {
+	const router = useRouter();
+	const { getToken } = useAuth();
+	const [categoryName, setCategoryName] = useState("カテゴリ");
+	const [isEditMode, setIsEditMode] = useState(false);
+	const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+	const [sortBy, setSortBy] = useState<string>("newest");
+	const [items, setItems] = useState<MemoItem[]>([...memoitems]);
+	// reflect incoming fetch results
+	useEffect(() => {
+		setItems([...memoitems]);
+	}, [memoitems]);
+	const [categoryDesc, setCategoryDesc] = useState<string>("");
+
+	// Fetch category display name if id provided
+	useEffect(() => {
+		if (!categoryId) return;
+		(async () => {
+			try {
+				const cats = await getCategories(getToken);
+				const hit = cats.find((c) => c.id === categoryId);
+				if (hit) {
+					setCategoryName(hit.name);
+					setCategoryDesc(hit.description ?? "");
+				}
+			} catch (e) {
+				console.warn("failed to load category name", e);
+			}
+		})();
+	}, [categoryId, getToken]);
+
+	const toTime = (x: MemoItem) => {
+		const iso = x.createdAt ?? x.updatedAt ?? null;
+		return iso ? Date.parse(iso) : 0;
+	};
 
 	const handleSort = (value: string) => {
 		setSortBy(value);
 		const sorted = [...items];
 		switch (value) {
 			case "newest":
-				sorted.sort(
-					(a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
-				);
+				sorted.sort((a, b) => toTime(b) - toTime(a));
 				break;
 			case "oldest":
-				sorted.sort(
-					(a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
-				);
-				break;
-			case "category":
-				sorted.sort((a, b) => a.category.localeCompare(b.category));
-				break;
-			case "title":
-				sorted.sort((a, b) => a.title.localeCompare(b.title));
+				sorted.sort((a, b) => toTime(a) - toTime(b));
 				break;
 		}
 		setItems(sorted);
 	};
-
 	const toggleEditMode = () => {
 		setIsEditMode((prev) => {
 			const next = !prev;
-			// 編集完了（falseに戻る）時は選択解除
 			if (!next) setSelectedIds(new Set());
 			return next;
 		});
 	};
 
-	const onToggleSelect = (id: number, checked: boolean) => {
+	const onToggleSelect = (id: string, checked: boolean) => {
 		setSelectedIds((prev) => {
 			const s = new Set(prev);
 			if (checked) s.add(id);
@@ -108,6 +115,10 @@ const CategoryViewContainer = () => {
 				isEditMode={isEditMode}
 				onToggleEditMode={toggleEditMode}
 				onCategoryNameChange={setCategoryName}
+				categoryDescription={categoryDesc}
+				onCategoryDescriptionChange={setCategoryDesc}
+				categoryId={categoryId}
+				onCategoryDeleted={() => router.push("/")}
 			/>
 
 			<CategoryItemList
@@ -118,7 +129,6 @@ const CategoryViewContainer = () => {
 				// onItemClick={(item) => console.log("clicked:", item)}
 			/>
 
-			{/* 編集モード時の下部アクションバー */}
 			{isEditMode && (
 				<div className="fixed bottom-4 left-0 right-0 flex justify-center pointer-events-none">
 					<div className="pointer-events-auto flex items-center gap-4 rounded-2xl bg-white shadow-lg border px-4 py-3">

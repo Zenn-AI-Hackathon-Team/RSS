@@ -4,13 +4,15 @@ type Provider = "youtube" | "x" | "instagram" | "generic";
 type FetchStatus = "ok" | "partial" | "failed";
 
 export type LinkDoc = {
-	url: string;
-	title: string | null;
-	description: string | null;
-	imageUrl: string | null;
-	categoryId: string | null;
-	provider?: Provider;
-	fetchStatus?: FetchStatus;
+    url: string;
+    title: string | null;
+    // 検索用（大文字小文字を区別しない）の小文字化タイトル
+    titleLower?: string | null;
+    description: string | null;
+    imageUrl: string | null;
+    categoryId: string | null;
+    provider?: Provider;
+    fetchStatus?: FetchStatus;
 	createdAt?: Timestamp;
 	updatedAt?: Timestamp;
 };

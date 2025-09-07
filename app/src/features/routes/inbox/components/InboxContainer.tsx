@@ -1,3 +1,4 @@
+// InboxContainer.tsx
 "use client";
 import type React from "react";
 import { useState } from "react";
@@ -5,71 +6,34 @@ import type { MemoItem } from "../../../../types/memoitem/types";
 import InboxHeader from "./InboxHeader";
 import InboxList from "./InboxList";
 
-const InboxContainer: React.FC = () => {
-	const [sortBy, setSortBy] = useState("newest");
-	const [items, setItems] = useState<MemoItem[]>([
-		{
-			id: 1,
-			title: "Web3時代の新しいビジネスモデル考察",
-			date: "2025-09-05",
-			category: "Web3",
-			color: "bg-orange-500",
-			icon: "blocks",
-		},
-		{
-			id: 2,
-			title: "知らないと損する、次世代AIツールの活用法",
-			date: "2025-09-04",
-			category: "AI",
-			color: "bg-purple-500",
-			icon: "brain",
-		},
-		{
-			id: 3,
-			title: "スタートアップの資金調達戦略2025",
-			date: "2025-09-03",
-			category: "Startup",
-			color: "bg-blue-500",
-			icon: "trending",
-		},
-		{
-			id: 4,
-			title: "リモートワーク時代のチームマネジメント",
-			date: "2025-09-02",
-			category: "Management",
-			color: "bg-green-500",
-			icon: "users",
-		},
-	]);
+type Props = { memoitems: MemoItem[] };
+
+const InboxContainer: React.FC<Props> = ({ memoitems }) => {
+	const [sortBy, setSortBy] = useState<string>("newest");
+	const [items, setItems] = useState<MemoItem[]>([...memoitems]);
+
+	// createdAt / updatedAt が無い時も落ちないように数値へ変換
+	const toTime = (x: MemoItem) => {
+		const iso = x.createdAt ?? x.updatedAt ?? null;
+		return iso ? Date.parse(iso) : 0; // 無い場合は 0（最古扱い）
+	};
 
 	const handleSort = (value: string) => {
 		setSortBy(value);
-		const sortedItems = [...items];
-
+		const sorted = [...items];
 		switch (value) {
 			case "newest":
-				sortedItems.sort(
-					(a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
-				);
+				sorted.sort((a, b) => toTime(b) - toTime(a));
 				break;
 			case "oldest":
-				sortedItems.sort(
-					(a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
-				);
-				break;
-			case "category":
-				sortedItems.sort((a, b) => a.category.localeCompare(b.category));
-				break;
-			case "title":
-				sortedItems.sort((a, b) => a.title.localeCompare(b.title));
+				sorted.sort((a, b) => toTime(a) - toTime(b));
 				break;
 		}
-
-		setItems(sortedItems);
+		setItems(sorted);
 	};
 
 	return (
-		<div className="w-full max-w-4xl mx-auto pt-6 min-h-screen">
+		<div className="w-full mx-auto pt-6 min-h-screen">
 			<InboxHeader sortBy={sortBy} onSortChange={handleSort} />
 			<InboxList items={items} />
 		</div>

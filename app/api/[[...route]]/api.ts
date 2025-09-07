@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
 	Category,
 	CategoryCreateBody,
+	CategoryWithCount,
 	ErrorRes,
 	Health,
 	Link,
@@ -14,6 +15,7 @@ import {
 } from "@/app/api/[[...route]]/model/model";
 import * as catUC from "@/app/api/usecases/categories";
 import * as linkUC from "@/app/api/usecases/links";
+import * as backfillUC from "@/app/api/usecases/backfill";
 import { authAdmin } from "@/lib/firebaseAdmin";
 
 // normalizers are used inside usecases
@@ -62,7 +64,7 @@ const createLinkRoute = createRoute({
 	path: "/links",
 	summary: "リンクを保存",
 	description:
-		"URLを送信すると OGP を取得して保存します。既存リンクがある場合は既存データを返し、存在しなければ新規作成します。",
+		"URLを送信すると OGP を取得して保存します。既存リンクがある場合は既存データを返し、存在しなければ新規作成する。その後、カテゴリとその中にすでに存在しているリンクの情報から、どのカテゴリに割り振るのかをAIで判断し、実際に割り振る。",
 	request: {
 		body: {
 			required: true,
@@ -98,8 +100,8 @@ const createLinkHandler: RouteHandler<typeof createLinkRoute> = async (c) => {
 		const { url } = await c.req.json<{ url: string }>();
 		const result = await linkUC.createLink(uid, url);
 		return c.json(result.link, result.created ? 201 : 200);
-	} catch (e: any) {
-		if (e?.message === "UNAUTHORIZED") {
+	} catch (e: unknown) {
+		if (e instanceof Error && e.message === "UNAUTHORIZED") {
 			return c.json({ code: "UNAUTHORIZED", message: "Invalid token" }, 401);
 		}
 		return c.json({ code: "INTERNAL", message: "Unexpected error" }, 500);
@@ -114,7 +116,6 @@ const listLinksRoute = createRoute({
 	description:
 		"保存済みリンクの一覧を取得します。カテゴリや未分類のフィルタリング、並び順を指定できます。",
 	request: {
-		headers: z.object({ authorization: z.string() }),
 		query: ListLinksQuery,
 	},
 	security: [{ bearerAuth: [] }],
@@ -151,8 +152,8 @@ const listLinksHandler: RouteHandler<typeof listLinksRoute> = async (c) => {
 			cursor,
 		});
 		return c.json({ items }, 200);
-	} catch (e: any) {
-		if (e?.message === "UNAUTHORIZED") {
+	} catch (e: unknown) {
+		if (e instanceof Error && e.message === "UNAUTHORIZED") {
 			return c.json({ code: "UNAUTHORIZED", message: "Invalid token" }, 401);
 		}
 		return c.json({ code: "INTERNAL", message: "Unexpected error" }, 500);
@@ -167,7 +168,6 @@ const getLinkRoute = createRoute({
 	description:
 		"指定したリンク ID の詳細情報（タイトル、OGP画像、カテゴリなど）を返します。",
 	request: {
-		headers: z.object({ authorization: z.string() }),
 		params: z.object({ id: z.string().describe("リンクのID") }),
 	},
 	security: [{ bearerAuth: [] }],
@@ -197,14 +197,14 @@ const getLinkHandler: RouteHandler<typeof getLinkRoute> = async (c) => {
 		try {
 			const link = await linkUC.getLink(uid, id);
 			return c.json(link, 200);
-		} catch (err: any) {
-			if (err?.message === "LINK_NOT_FOUND") {
+		} catch (err: unknown) {
+			if (err instanceof Error && err.message === "LINK_NOT_FOUND") {
 				return c.json({ code: "NOT_FOUND", message: "Link not found" }, 404);
 			}
 			throw err;
 		}
-	} catch (e: any) {
-		if (e?.message === "UNAUTHORIZED") {
+	} catch (e: unknown) {
+		if (e instanceof Error && e.message === "UNAUTHORIZED") {
 			return c.json({ code: "UNAUTHORIZED", message: "Invalid token" }, 401);
 		}
 		return c.json({ code: "INTERNAL", message: "Unexpected error" }, 500);
@@ -219,7 +219,6 @@ const moveRoute = createRoute({
 	description:
 		"リンクを別のカテゴリへ移動します。`categoryId` を null にすると未分類 (Inbox) に移動します。",
 	request: {
-		headers: z.object({ authorization: z.string() }),
 		params: z.object({ id: z.string().describe("リンクのID") }),
 		body: {
 			required: true,
@@ -256,11 +255,11 @@ const moveHandler: RouteHandler<typeof moveRoute> = async (c) => {
 		try {
 			const link = await linkUC.moveCategory(uid, id, categoryId ?? null);
 			return c.json(link, 200);
-		} catch (err: any) {
-			if (err?.message === "LINK_NOT_FOUND") {
+		} catch (err: unknown) {
+			if (err instanceof Error && err.message === "LINK_NOT_FOUND") {
 				return c.json({ code: "NOT_FOUND", message: "Link not found" }, 404);
 			}
-			if (err?.message === "CATEGORY_NOT_FOUND") {
+			if (err instanceof Error && err.message === "CATEGORY_NOT_FOUND") {
 				return c.json(
 					{ code: "NOT_FOUND", message: "Category not found" },
 					404,
@@ -268,8 +267,8 @@ const moveHandler: RouteHandler<typeof moveRoute> = async (c) => {
 			}
 			throw err;
 		}
-	} catch (e: any) {
-		if (e?.message === "UNAUTHORIZED") {
+	} catch (e: unknown) {
+		if (e instanceof Error && e.message === "UNAUTHORIZED") {
 			return c.json({ code: "UNAUTHORIZED", message: "Invalid token" }, 401);
 		}
 		return c.json({ code: "INTERNAL", message: "Unexpected error" }, 500);
@@ -288,7 +287,9 @@ const listCatsRoute = createRoute({
 		200: {
 			description: "カテゴリ一覧",
 			content: {
-				"application/json": { schema: z.object({ items: z.array(Category) }) },
+				"application/json": {
+					schema: z.object({ items: z.array(CategoryWithCount) }),
+				},
 			},
 		},
 		401: {
@@ -314,7 +315,6 @@ const createCatRoute = createRoute({
 	summary: "カテゴリ作成",
 	description: "新しいカテゴリを作成します。",
 	request: {
-		headers: z.object({ authorization: z.string() }),
 		body: {
 			required: true,
 			content: { "application/json": { schema: CategoryCreateBody } },
@@ -337,24 +337,96 @@ const createCatRoute = createRoute({
 	},
 });
 const createCatHandler: RouteHandler<typeof createCatRoute> = async (c) => {
-	try {
-		const uid = await requireUid(c.req.header("authorization") ?? undefined);
-		const body = (await c.req.json()) as { name: string };
-		try {
-			const created = await catUC.createCategory(uid, body.name);
-			return c.json(created, 201);
-		} catch (err: any) {
-			if (err?.message === "ALREADY_EXISTS") {
-				return c.json(
-					{ code: "ALREADY_EXISTS", message: "Category name already exists" },
-					409,
-				);
-			}
-			throw err;
-		}
-	} catch {
-		return c.json({ code: "UNAUTHORIZED", message: "Invalid token" }, 401);
-	}
+    try {
+        const uid = await requireUid(c.req.header("authorization") ?? undefined);
+        const body = (await c.req.json()) as { name: string; description?: string | null };
+        try {
+            const created = await catUC.createCategory(uid, body.name, body.description ?? null);
+            return c.json(created, 201);
+        } catch (err: unknown) {
+            if (err instanceof Error && err.message === "ALREADY_EXISTS") {
+                return c.json(
+                    { code: "ALREADY_EXISTS", message: "Category name already exists" },
+                    409,
+                );
+            }
+            throw err;
+        }
+    } catch {
+        return c.json({ code: "UNAUTHORIZED", message: "Invalid token" }, 401);
+    }
+};
+
+// update category name
+const updateCatRoute = createRoute({
+    method: "patch",
+    path: "/categories/{id}",
+    summary: "カテゴリ名変更",
+    description: "カテゴリ名を更新します。重複名はエラーになります。",
+    request: {
+        params: z.object({ id: z.string().describe("カテゴリID") }),
+        body: { required: true, content: { "application/json": { schema: CategoryCreateBody } } },
+    },
+    security: [{ bearerAuth: [] }],
+    responses: {
+        200: { description: "更新後のカテゴリ", content: { "application/json": { schema: Category } } },
+        401: { description: "認証エラー", content: { "application/json": { schema: ErrorRes } } },
+        404: { description: "存在しない", content: { "application/json": { schema: ErrorRes } } },
+        409: { description: "重複カテゴリ名", content: { "application/json": { schema: ErrorRes } } },
+    },
+});
+const updateCatHandler: RouteHandler<typeof updateCatRoute> = async (c) => {
+    try {
+        const uid = await requireUid(c.req.header("authorization") ?? undefined);
+        const { id } = c.req.valid("param");
+        const body = (await c.req.json()) as { name: string; description?: string | null };
+        try {
+            const updated = await catUC.updateCategoryName(uid, id, body.name, body.description ?? null);
+            return c.json({ id: updated.id, name: updated.name, description: updated.description }, 200);
+        } catch (err: unknown) {
+            if (err instanceof Error && err.message === "CATEGORY_NOT_FOUND") {
+                return c.json({ code: "NOT_FOUND", message: "Category not found" }, 404);
+            }
+            if (err instanceof Error && err.message === "ALREADY_EXISTS") {
+                return c.json({ code: "ALREADY_EXISTS", message: "Category name already exists" }, 409);
+            }
+            throw err;
+        }
+    } catch {
+        return c.json({ code: "UNAUTHORIZED", message: "Invalid token" }, 401);
+    }
+};
+
+// delete category
+const deleteCatRoute = createRoute({
+    method: "delete",
+    path: "/categories/{id}",
+    summary: "カテゴリ削除",
+    description: "カテゴリを削除します。カテゴリ内のリンクは Inbox に移動します。",
+    request: { params: z.object({ id: z.string().describe("カテゴリID") }) },
+    security: [{ bearerAuth: [] }],
+    responses: {
+        204: { description: "削除成功" },
+        401: { description: "認証エラー", content: { "application/json": { schema: ErrorRes } } },
+        404: { description: "存在しない", content: { "application/json": { schema: ErrorRes } } },
+    },
+});
+const deleteCatHandler: RouteHandler<typeof deleteCatRoute> = async (c) => {
+    try {
+        const uid = await requireUid(c.req.header("authorization") ?? undefined);
+        const { id } = c.req.valid("param");
+        try {
+            await catUC.deleteCategory(uid, id);
+            return c.body(null, 204);
+        } catch (err: unknown) {
+            if (err instanceof Error && err.message === "CATEGORY_NOT_FOUND") {
+                return c.json({ code: "NOT_FOUND", message: "Category not found" }, 404);
+            }
+            throw err;
+        }
+    } catch {
+        return c.json({ code: "UNAUTHORIZED", message: "Invalid token" }, 401);
+    }
 };
 
 // search
@@ -365,7 +437,6 @@ const searchRoute = createRoute({
 	description:
 		"タイトルやカテゴリ名を対象に検索を行います。結果は関連度順に返されます。",
 	request: {
-		headers: z.object({ authorization: z.string() }),
 		query: SearchQuery,
 	},
 	security: [{ bearerAuth: [] }],
@@ -391,6 +462,38 @@ const searchHandler: RouteHandler<typeof searchRoute> = async (c) => {
 	}
 };
 
+// backfill counts
+const backfillRoute = createRoute({
+    method: "post",
+    path: "/maintenance/backfill-counts",
+    summary: "バックフィル: カテゴリ件数再計算",
+    description: "既存リンクを集計してカテゴリの linkCount と Inbox 数を初期化/再計算します。",
+    security: [{ bearerAuth: [] }],
+    responses: {
+        200: {
+            description: "完了",
+            content: {
+                "application/json": {
+                    schema: z.object({
+                        inbox: z.number().int(),
+                        categories: z.array(z.object({ id: z.string(), count: z.number().int() })),
+                    }),
+                },
+            },
+        },
+        401: { description: "認証エラー", content: { "application/json": { schema: ErrorRes } } },
+    },
+});
+const backfillHandler: RouteHandler<typeof backfillRoute> = async (c) => {
+    try {
+        const uid = await requireUid(c.req.header("authorization") ?? undefined);
+        const result = await backfillUC.backfillCounts(uid);
+        return c.json(result, 200);
+    } catch {
+        return c.json({ code: "UNAUTHORIZED", message: "Invalid token" }, 401);
+    }
+};
+
 /* =========================
  * export
  * =======================*/
@@ -402,6 +505,9 @@ export const api = new OpenAPIHono()
 	.openapi(moveRoute, moveHandler)
 	.openapi(listCatsRoute, listCatsHandler)
 	.openapi(createCatRoute, createCatHandler)
-	.openapi(searchRoute, searchHandler);
+	.openapi(updateCatRoute, updateCatHandler)
+	.openapi(deleteCatRoute, deleteCatHandler)
+	.openapi(searchRoute, searchHandler)
+	.openapi(backfillRoute, backfillHandler);
 
 export default api;

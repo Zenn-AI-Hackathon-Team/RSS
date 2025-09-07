@@ -11,6 +11,8 @@ export function normalizeUrl(raw: string): string {
 			"fbclid",
 			"gclid",
 			"ref",
+			// Instagram共有用の余計なクエリ
+			"igsh",
 		];
 		for (const key of toDelete) u.searchParams.delete(key);
 		if (u.searchParams.toString() === "") u.search = "";

@@ -1,4 +1,3 @@
-import React from "react";
 import RegisterCard from "../src/features/routes/auth/components/RegisterCard";
 
 const page = () => {

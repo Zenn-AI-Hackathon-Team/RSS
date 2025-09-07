@@ -1,6 +1,8 @@
 "use client";
 
-import Image from "next/image";
+import SmartImage from "@/app/src/components/SmartImage";
+import InstagramEmbed from "./InstagramEmbed";
+import TwitterEmbed from "./TwitterEmbed";
 import { useId, useState } from "react";
 // import { X, Plus } from "lucide-react";
 import type { CategoryItem } from "@/app/src/types/categoryItem/types";
@@ -55,13 +57,30 @@ export default function PostDetailsScreen({
 
 	return (
 		<div className="p-4 space-y-6">
-			<Image
-				src={post.thumbnail}
-				alt={post.title}
-				width={800}
-				height={208}
-				className="w-full h-auto max-h-52 object-cover rounded-lg border"
-			/>
+			{/* Provider-specific embed */}
+			{post.provider === "youtube" && post.videoId ? (
+				<div className="relative w-full overflow-hidden rounded-lg border" style={{ paddingTop: "56.25%" }}>
+					<iframe
+						title={post.title}
+						src={`https://www.youtube.com/embed/${post.videoId}`}
+						allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+						allowFullScreen
+						className="absolute inset-0 w-full h-full"
+					/>
+				</div>
+			) : post.provider === "x" && post.tweetId ? (
+				<TwitterEmbed url={post.url} />
+			) : post.provider === "instagram" ? (
+				<InstagramEmbed url={post.url} />
+			) : (
+				<SmartImage
+					src={post.thumbnail}
+					alt={post.title}
+					width={800}
+					height={208}
+					className="w-full h-auto max-h-52 object-cover rounded-lg border"
+				/>
+			)}
 
 			<h1 className="text-2xl font-bold text-slate-900">{post.title}</h1>
 

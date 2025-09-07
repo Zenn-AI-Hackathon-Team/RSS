@@ -9,25 +9,29 @@ export default function ClientPage({ categoryId }: { categoryId: string }) {
 	const { token, loading } = useAuth();
 	const [items, setItems] = useState<MemoItem[]>([]);
 
-	useEffect(() => {
-		if (loading || !token) return;
-		const qs = new URLSearchParams({
-			categoryId,
-			inbox: "false",
-			sort: "desc",
-		});
-		fetch(`/api/link?${qs.toString()}`, {
-			headers: { authorization: `Bearer ${token}` },
-			cache: "no-store",
-		})
-			.then((r) => r.json())
-			.then((d) => setItems(d.items ?? []));
-	}, [loading, token, categoryId]);
+    useEffect(() => {
+        if (loading || !token) return;
+        const qs = new URLSearchParams({
+            categoryId,
+            inbox: "false",
+            sort: "desc",
+        });
+        fetch(`/api/links?${qs.toString()}`, {
+            headers: { authorization: `Bearer ${token}` },
+            cache: "no-store",
+        })
+            .then(async (r) => {
+                if (!r.ok) throw new Error(`failed: ${r.status}`);
+                return r.json();
+            })
+            .then((d) => setItems(d.items ?? []))
+            .catch(() => setItems([]));
+    }, [loading, token, categoryId]);
 
-	return (
-		<div>
-			<Header title="カテゴリ詳細" showBack />
-			<CategoryViewContainer memoitems={items} />
-		</div>
-	);
+    return (
+        <div>
+            <Header title="カテゴリ詳細" showBack />
+            <CategoryViewContainer memoitems={items} categoryId={categoryId} />
+        </div>
+    );
 }

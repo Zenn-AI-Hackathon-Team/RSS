@@ -1,4 +1,5 @@
 import { db, serverTimestamp } from "@/lib/firebaseAdmin";
+import admin from "firebase-admin";
 
 function col(uid: string) {
 	// users/{uid}/categories コレクション参照
@@ -6,12 +7,12 @@ function col(uid: string) {
 }
 
 export async function create(
-	uid: string,
-	data: { name: string; nameLower: string },
+    uid: string,
+    data: { name: string; nameLower: string; description?: string | null },
 ) {
-	// カテゴリ作成（名前と小文字化した名前、作成時刻を保存）
-	const ref = await col(uid).add({ ...data, createdAt: serverTimestamp() });
-	return ref;
+    // カテゴリ作成（名前と小文字化した名前、作成時刻を保存）
+    const ref = await col(uid).add({ ...data, createdAt: serverTimestamp() });
+    return ref;
 }
 
 export async function findByNameLower(uid: string, nameLower: string) {
@@ -36,8 +37,8 @@ export async function listRaw(uid: string) {
 }
 
 export async function getById(uid: string, id: string) {
-	// 指定IDのカテゴリを取得
-	return await col(uid).doc(id).get();
+    // 指定IDのカテゴリを取得
+    return await col(uid).doc(id).get();
 }
 
 export async function updateEmbedding(
@@ -56,4 +57,28 @@ export async function updateEmbedding(
 		},
 		{ merge: true },
 	);
+}
+
+export async function updateName(
+    uid: string,
+    id: string,
+    data: { name: string; nameLower: string; description?: string | null },
+) {
+    const ref = col(uid).doc(id);
+    await ref.set(
+        {
+            ...data,
+            // 名前が変わったら埋め込みは無効化（再計算対象）
+            embedding: admin.firestore.FieldValue.delete(),
+            embeddingModel: admin.firestore.FieldValue.delete(),
+            embeddingUpdatedAt: admin.firestore.FieldValue.delete(),
+            updatedAt: serverTimestamp(),
+        },
+        { merge: true },
+    );
+    return ref.get();
+}
+
+export async function remove(uid: string, id: string) {
+    await col(uid).doc(id).delete();
 }

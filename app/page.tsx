@@ -9,16 +9,17 @@ import InboxFetcher from "./src/features/routes/inbox/components/InboxFetcher";
 
 export default function Page() {
 	const { user } = useAuth();
-	const {
-		posts,
-		categories,
-		loading,
-		error,
-		handleAddNewCategory,
-		handleSaveLink,
-		handlePostClick,
-		handleCategoryClick,
-	} = useHomePage(user);
+    const {
+        posts,
+        categories,
+        loading,
+        error,
+        handleAddNewCategory,
+        handleSaveLink,
+        handlePostClick,
+        handleCategoryClick,
+        fetchCategories,
+    } = useHomePage(user);
 
 	return (
 		<main className="relative min-h-screen p-4 space-y-8">
@@ -28,14 +29,15 @@ export default function Page() {
 				onResultClick={handlePostClick}
 			/>
 
-			<CategoryContainer
-				categories={categories}
-				posts={posts}
-				onCategoryClick={handleCategoryClick}
-				onAddNewCategory={handleAddNewCategory}
-				loading={loading}
-				error={error}
-			/>
+            <CategoryContainer
+                categories={categories}
+                posts={posts}
+                onCategoryClick={handleCategoryClick}
+                onAddNewCategory={handleAddNewCategory}
+                loading={loading}
+                error={error}
+                onRefreshCategories={fetchCategories}
+            />
 			<hr className="border-2 border-slate-200"></hr>
 
 			<InboxFetcher />

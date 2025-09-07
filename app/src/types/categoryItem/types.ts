@@ -1,15 +1,17 @@
 import type { PostItem } from "../postItem/types";
 
 export interface CategoryItem {
-	id: string;
-	name: string;
-	count?: number;
+    id: string;
+    name: string;
+    description?: string | null;
+    count?: number;
 }
 
 export interface CategoryWithCount {
-	id: string;
-	name: string;
-	count: number;
+    id: string;
+    name: string;
+    description?: string | null;
+    count: number;
 }
 
 export interface CategoryContainerProps {
@@ -20,13 +22,15 @@ export interface CategoryContainerProps {
 }
 
 export interface CreateCategoryRequest {
-	name: string;
+    name: string;
+    description?: string | null;
 }
 
 export interface CreateCategoryResponse {
-	id: string;
-	name: string;
-	count?: number;
+    id: string;
+    name: string;
+    description?: string | null;
+    count?: number;
 }
 
 export interface ErrorResponse {

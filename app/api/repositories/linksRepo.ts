@@ -20,28 +20,36 @@ export async function findByUrl(uid: string, url: string) {
 }
 
 export async function create(
-	uid: string,
-	data: {
-		url: string;
-		title: string | null;
-		description: string | null;
-		imageUrl: string | null;
-		categoryId: string | null;
-		provider: "youtube" | "x" | "instagram" | "generic";
-		fetchStatus: "ok" | "partial" | "failed";
-	},
+    uid: string,
+    data: {
+        url: string;
+        title: string | null;
+        description: string | null;
+        imageUrl: string | null;
+        categoryId: string | null;
+        provider: "youtube" | "x" | "instagram" | "generic";
+        fetchStatus: "ok" | "partial" | "failed";
+    },
 ) {
-	// 新規リンク作成（作成/更新時刻はサーバ時刻）
-	const ref = await col(uid).add({
-		...data,
-		createdAt: serverTimestamp(),
-		updatedAt: serverTimestamp(),
-	});
-	return ref;
+    // 新規リンク作成（作成/更新時刻はサーバ時刻）
+    const ref = await col(uid).add({
+        ...data,
+        // 検索用に小文字化したタイトルを保存（nullはそのまま）
+        titleLower: data.title ? data.title.toLowerCase() : null,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+    });
+    return ref;
 }
 
 export async function getById(uid: string, id: string) {
-	return await col(uid).doc(id).get();
+    return await col(uid).doc(id).get();
+}
+
+export async function listAll(uid: string) {
+    // ユーザーの全リンクを取得（バックフィル用途）
+    const snap = await col(uid).get();
+    return snap.docs;
 }
 
 export async function list(uid: string, opts: ListOptions) {
@@ -101,16 +109,18 @@ export async function updateAutoCategoryMeta(
 }
 
 export async function searchByTitlePrefix(
-	uid: string,
-	q: string,
-	limit = 20,
-	cursor?: string,
+    uid: string,
+    q: string,
+    limit = 20,
+    cursor?: string,
 ) {
-	const linksRef = col(uid);
-	let searchQ = linksRef
-		.where("title", ">=", q)
-		.where("title", "<", `${q}\uf8ff`)
-		.orderBy("title", "asc");
+    const linksRef = col(uid);
+    // 大文字小文字を区別しない検索のため、titleLower を使用
+    const qLower = q.toLowerCase();
+    let searchQ = linksRef
+        .where("titleLower", ">=", qLower)
+        .where("titleLower", "<", `${qLower}\uf8ff`)
+        .orderBy("titleLower", "asc");
 
 	if (cursor) {
 		const cursorSnap = await linksRef.doc(cursor).get();

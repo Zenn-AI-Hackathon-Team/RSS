@@ -11,7 +11,7 @@ export async function create(
     data: { name: string; nameLower: string; description?: string | null },
 ) {
     // カテゴリ作成（名前と小文字化した名前、作成時刻を保存）
-    const ref = await col(uid).add({ ...data, createdAt: serverTimestamp() });
+    const ref = await col(uid).add({ ...data, linkCount: 0, createdAt: serverTimestamp() });
     return ref;
 }
 
@@ -81,4 +81,32 @@ export async function updateName(
 
 export async function remove(uid: string, id: string) {
     await col(uid).doc(id).delete();
+}
+
+export function incrementLinkCountInBatch(
+    uid: string,
+    id: string,
+    delta: number,
+    batch: FirebaseFirestore.WriteBatch,
+) {
+    const ref = col(uid).doc(id);
+    batch.set(
+        ref,
+        { linkCount: admin.firestore.FieldValue.increment(delta), updatedAt: serverTimestamp() },
+        { merge: true },
+    );
+}
+
+export function setLinkCountInBatch(
+    uid: string,
+    id: string,
+    value: number,
+    batch: FirebaseFirestore.WriteBatch,
+) {
+    const ref = col(uid).doc(id);
+    batch.set(
+        ref,
+        { linkCount: value, updatedAt: serverTimestamp() },
+        { merge: true },
+    );
 }

@@ -10,6 +10,7 @@ import { saveLinkAndTransform } from "./endpoint";
 export const useLinkSaver = (
 	user: User | null,
 	addPost: (post: PostItem) => void,
+	onSaveLinkComplete?: (post: PostItem) => void,
 ) => {
 	const router = useRouter();
 
@@ -26,6 +27,9 @@ export const useLinkSaver = (
 
 			// 新しいリンクを投稿リストに追加
 			addPost(newPost);
+
+			// コールバック関数があれば実行（カテゴリ一覧の再取得など）
+			onSaveLinkComplete?.(newPost);
 
 			alert(`リンクが正常に保存されました: ${newPost.title}`);
 		} catch (error) {
@@ -54,27 +58,6 @@ export const useNavigation = () => {
 	};
 
 	return {
-		handleSearchResultClick,
-		handleCategoryClick,
-	};
-};
-
-/**
- * ホームページ全体のロジックを統合するカスタムフック
- */
-export const useHomePage = (user: User | null) => {
-	const { posts, addPost } = usePosts();
-	const { categories, handleAddNewCategory } = useCategories();
-	const { handleSaveLink } = useLinkSaver(user, addPost);
-	const { handleSearchResultClick, handleCategoryClick } = useNavigation();
-
-	return {
-		// データ
-		posts,
-		categories,
-		// ハンドラー
-		handleAddNewCategory,
-		handleSaveLink,
 		handleSearchResultClick,
 		handleCategoryClick,
 	};

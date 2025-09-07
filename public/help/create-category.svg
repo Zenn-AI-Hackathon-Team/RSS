@@ -10,6 +10,5 @@
   <rect x="220" y="190" width="140" height="90" rx="8" fill="#eef2ff" stroke="#6366f1" stroke-dasharray="6 6"/>
   <line x1="290" y1="210" x2="290" y2="260" stroke="#6366f1" stroke-width="6"/>
   <line x1="265" y1="235" x2="315" y2="235" stroke="#6366f1" stroke-width="6"/>
-  <text x="60" y="56" font-family="Arial, sans-serif" font-size="18" fill="#334155">「カテゴリを追加」からフォルダを作成します</text>
+  
 </svg>
-

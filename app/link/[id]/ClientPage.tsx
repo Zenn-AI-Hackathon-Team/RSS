@@ -76,19 +76,17 @@ export default function ClientPage({ id }: { id: string }) {
 			setPost(p);
 		})();
 
-		// fetch categories
-		(async () => {
-			const res = await fetch(`/api/categories`, {
-				headers: { ...(authHeader as Record<string, string>) },
-				cache: "no-store",
-			});
-			if (!res.ok) return;
-			const json = (await res.json()) as { items: Category[] };
-			const cats = json.items ?? [];
-			// 先頭に Inbox を追加（サーバー上は null 扱い）
-			const withInbox: Category[] = [{ id: "inbox", name: "Inbox" }, ...cats];
-			setCategories(withInbox);
-		})();
+        // fetch categories (server already includes Inbox)
+        (async () => {
+            const res = await fetch(`/api/categories`, {
+                headers: { ...(authHeader as Record<string, string>) },
+                cache: "no-store",
+            });
+            if (!res.ok) return;
+            const json = (await res.json()) as { items: Category[] };
+            const cats = json.items ?? [];
+            setCategories(cats);
+        })();
 	}, [loading, token, id, authHeader]);
 
 	const handleCategoryChange = async (

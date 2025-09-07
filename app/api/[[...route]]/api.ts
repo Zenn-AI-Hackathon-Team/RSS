@@ -15,6 +15,7 @@ import {
 } from "@/app/api/[[...route]]/model/model";
 import * as catUC from "@/app/api/usecases/categories";
 import * as linkUC from "@/app/api/usecases/links";
+import * as backfillUC from "@/app/api/usecases/backfill";
 import { authAdmin } from "@/lib/firebaseAdmin";
 
 // normalizers are used inside usecases
@@ -461,6 +462,38 @@ const searchHandler: RouteHandler<typeof searchRoute> = async (c) => {
 	}
 };
 
+// backfill counts
+const backfillRoute = createRoute({
+    method: "post",
+    path: "/maintenance/backfill-counts",
+    summary: "バックフィル: カテゴリ件数再計算",
+    description: "既存リンクを集計してカテゴリの linkCount と Inbox 数を初期化/再計算します。",
+    security: [{ bearerAuth: [] }],
+    responses: {
+        200: {
+            description: "完了",
+            content: {
+                "application/json": {
+                    schema: z.object({
+                        inbox: z.number().int(),
+                        categories: z.array(z.object({ id: z.string(), count: z.number().int() })),
+                    }),
+                },
+            },
+        },
+        401: { description: "認証エラー", content: { "application/json": { schema: ErrorRes } } },
+    },
+});
+const backfillHandler: RouteHandler<typeof backfillRoute> = async (c) => {
+    try {
+        const uid = await requireUid(c.req.header("authorization") ?? undefined);
+        const result = await backfillUC.backfillCounts(uid);
+        return c.json(result, 200);
+    } catch {
+        return c.json({ code: "UNAUTHORIZED", message: "Invalid token" }, 401);
+    }
+};
+
 /* =========================
  * export
  * =======================*/
@@ -474,6 +507,7 @@ export const api = new OpenAPIHono()
 	.openapi(createCatRoute, createCatHandler)
 	.openapi(updateCatRoute, updateCatHandler)
 	.openapi(deleteCatRoute, deleteCatHandler)
-	.openapi(searchRoute, searchHandler);
+	.openapi(searchRoute, searchHandler)
+	.openapi(backfillRoute, backfillHandler);
 
 export default api;

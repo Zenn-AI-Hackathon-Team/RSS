@@ -63,21 +63,10 @@ const CategoryHeader: React.FC<CategoryHeaderProps> = ({
 		<div className="flex justify-between items-center mb-6">
             <div className="relative flex items-center space-x-3 min-w-0">
                 <FolderOpen className="w-8 h-8 text-blue-400" />
-                {isEditMode ? (
-                    <div className="flex flex-1 items-center gap-2 pr-10 min-w-0">
-                        <Input
-                            value={categoryName}
-                            onChange={(e) => onCategoryNameChange(e.target.value)}
-                            className="border-2 border-gray-400 w-48"
-                            placeholder="カテゴリー名を入力"
-                        />
-                    </div>
-                ) : (
-                    <h1 className="flex-1 pr-10 min-w-0 font-bold text-3xl text-black truncate">
-                        {categoryName}
-                    </h1>
-                )}
-
+                <h1 className="flex-1 pr-10 min-w-0 font-bold text-3xl text-black truncate">
+                    {categoryName}
+                </h1>
+            
                 {/* Move kebab menu next to the category name */}
                 <DropdownMenu>
                     <DropdownMenuTrigger asChild>

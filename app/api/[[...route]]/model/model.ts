@@ -13,6 +13,7 @@ export const Category = z
 	.object({
 		id: z.string(),
 		name: z.string(),
+		description: z.string().optional().nullable(),
 		count: z.number().int().optional(),
 	})
 	.openapi("Category");
@@ -21,6 +22,7 @@ export const CategoryWithCount = z
 	.object({
 		id: z.string(),
 		name: z.string(),
+		description: z.string().optional().nullable(),
 		count: z.number().int(),
 	})
 	.openapi("CategoryWithCount");
@@ -28,6 +30,7 @@ export const CategoryWithCount = z
 export const CategoryCreateBody = z
 	.object({
 		name: z.string().min(1),
+		description: z.string().optional().nullable(),
 	})
 	.openapi("CategoryCreateBody");
 

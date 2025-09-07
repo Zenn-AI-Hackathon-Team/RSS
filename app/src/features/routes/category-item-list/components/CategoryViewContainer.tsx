@@ -2,23 +2,51 @@
 "use client";
 
 import { Trash2 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import type { MemoItem } from "../../../../types/memoitem/types";
 import CategoryHeader from "./CategoryHeader";
 import CategoryItemList from "./CategoryItemList";
+import { useAuth } from "@/app/src/providers/AuthProvider";
+import { getCategories } from "../../category/endpoint";
+import { useRouter } from "next/navigation";
 
 type Props = {
-	memoitems: MemoItem[];
+    memoitems: MemoItem[];
+    categoryId?: string;
 };
 
-const CategoryViewContainer: React.FC<Props> = ({ memoitems }) => {
-	const [categoryName, setCategoryName] = useState("旅行");
-	const [isEditMode, setIsEditMode] = useState(false);
-	const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+const CategoryViewContainer: React.FC<Props> = ({ memoitems, categoryId }) => {
+    const router = useRouter();
+    const { getToken } = useAuth();
+    const [categoryName, setCategoryName] = useState("カテゴリ");
+    const [isEditMode, setIsEditMode] = useState(false);
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
 	const [sortBy, setSortBy] = useState<string>("newest");
-	const [items, setItems] = useState<MemoItem[]>([...memoitems]);
+    const [items, setItems] = useState<MemoItem[]>([...memoitems]);
+    // reflect incoming fetch results
+    useEffect(() => {
+        setItems([...memoitems]);
+    }, [memoitems]);
+    const [categoryDesc, setCategoryDesc] = useState<string>("");
+
+    // Fetch category display name if id provided
+    useEffect(() => {
+        if (!categoryId) return;
+        (async () => {
+            try {
+                const cats = await getCategories(getToken);
+                const hit = cats.find((c) => c.id === categoryId);
+                if (hit) {
+                    setCategoryName(hit.name);
+                    setCategoryDesc(hit.description ?? "");
+                }
+            } catch (e) {
+                console.warn("failed to load category name", e);
+            }
+        })();
+    }, [categoryId, getToken]);
 
 	const toTime = (x: MemoItem) => {
 		const iso = x.createdAt ?? x.updatedAt ?? null;
@@ -65,14 +93,18 @@ const CategoryViewContainer: React.FC<Props> = ({ memoitems }) => {
 
 	return (
 		<div className="relative pb-24">
-			<CategoryHeader
-				sortBy={sortBy}
-				onSortChange={handleSort}
-				categoryName={categoryName}
-				isEditMode={isEditMode}
-				onToggleEditMode={toggleEditMode}
-				onCategoryNameChange={setCategoryName}
-			/>
+        <CategoryHeader
+            sortBy={sortBy}
+            onSortChange={handleSort}
+            categoryName={categoryName}
+            isEditMode={isEditMode}
+            onToggleEditMode={toggleEditMode}
+            onCategoryNameChange={setCategoryName}
+            categoryDescription={categoryDesc}
+            onCategoryDescriptionChange={setCategoryDesc}
+            categoryId={categoryId}
+            onCategoryDeleted={() => router.push("/")}
+        />
 
 			<CategoryItemList
 				items={items}

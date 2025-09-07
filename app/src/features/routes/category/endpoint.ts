@@ -1,9 +1,9 @@
 import { client } from "@/app/src/client/api";
 import type {
-	CategoryWithCount,
-	CreateCategoryRequest,
-	CreateCategoryResponse,
-	ErrorResponse,
+    CategoryWithCount,
+    CreateCategoryRequest,
+    CreateCategoryResponse,
+    ErrorResponse,
 } from "@/app/src/types/categoryItem/types";
 import type { PostItem } from "@/app/src/types/postItem/types";
 
@@ -71,8 +71,9 @@ export const getCategories = async (
 };
 
 export const addCategory = async (
-	categoryName: string,
-	getToken: () => Promise<string | null>,
+    categoryName: string,
+    getToken: () => Promise<string | null>,
+    description?: string | null,
 ): Promise<CreateCategoryResponse> => {
 	try {
 		const token = await getToken();
@@ -80,9 +81,10 @@ export const addCategory = async (
 			throw new Error("認証が必要です");
 		}
 
-		const requestBody: CreateCategoryRequest = {
-			name: categoryName,
-		};
+    const requestBody: CreateCategoryRequest = {
+        name: categoryName,
+        description: description ?? null,
+    };
 
 		const response = await client.api.categories.$post(
 			{ json: requestBody },
@@ -114,19 +116,20 @@ export const addCategory = async (
 			throw new Error(errorMessage);
 		}
 
-		const data = (await response.json()) as CreateCategoryResponse;
+    const data = (await response.json()) as CreateCategoryResponse;
 
 		if (!data || typeof data !== "object" || !data.id || !data.name) {
 			throw new Error("予期しないレスポンス形式です");
 		}
 
 		// レスポンスにcountが含まれていない場合は0を設定
-		return {
-			id: data.id,
-			name: data.name,
-			count: data.count ?? 0,
-		};
-	} catch (error) {
+    return {
+        id: data.id,
+        name: data.name,
+        description: data.description ?? null,
+        count: data.count ?? 0,
+    };
+} catch (error) {
 		console.error("addCategory関数でエラーが発生しました:", error);
 
 		if (error instanceof Error) {
@@ -136,6 +139,64 @@ export const addCategory = async (
 		throw new Error("カテゴリの作成中に予期しないエラーが発生しました");
 	}
 };
+
+export const updateCategoryName = async (
+    id: string,
+    name: string,
+    getToken: () => Promise<string | null>,
+    description?: string | null,
+) => {
+    const token = await getToken();
+    if (!token) throw new Error("認証が必要です");
+
+    const body: any = { name };
+    if (description !== undefined) body.description = description;
+
+    const res = await client.api.categories[":id"].$patch(
+        { param: { id }, json: body },
+        { headers: { authorization: `Bearer ${token}` } },
+    );
+    if (!res.ok) {
+        let msg = "カテゴリ名の更新に失敗しました";
+        try {
+            const data = (await res.json()) as ErrorResponse;
+            msg = data?.message || msg;
+        } catch {}
+        if (res.status === 401) msg = "認証エラー: ログインが必要です";
+        if (res.status === 404) msg = "指定のカテゴリが見つかりません";
+        if (res.status === 409) msg = "同名のカテゴリが既に存在します";
+        throw new Error(msg);
+    }
+    return (await res.json()) as { id: string; name: string; description?: string | null };
+};
+
+export const deleteCategory = async (
+    id: string,
+    getToken: () => Promise<string | null>,
+) => {
+    const token = await getToken();
+    if (!token) throw new Error("認証が必要です");
+    const res = await client.api.categories[":id"].$delete(
+        { param: { id } },
+        { headers: { authorization: `Bearer ${token}` } },
+    );
+    if (!res.ok) {
+        let msg = "カテゴリの削除に失敗しました";
+        try {
+            const data = (await res.json()) as ErrorResponse;
+            msg = data?.message || msg;
+        } catch {}
+        if (res.status === 401) msg = "認証エラー: ログインが必要です";
+        if (res.status === 404) msg = "指定のカテゴリが見つかりません";
+        throw new Error(msg);
+    }
+    return true;
+};
+
+/**
+ * カテゴリ名を更新する
+ */
+// (duplicate older implementations removed)
 
 // モックデータ
 export const initialPosts: PostItem[] = [

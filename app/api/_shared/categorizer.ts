@@ -96,16 +96,17 @@ async function embedSingle(text: string): Promise<number[]> {
 }
 
 async function ensureCategoryEmbeddings(
-	uid: string,
-	cats: Array<{
-		id: string;
-		name: string;
-		nameLower?: string;
-		embedding?: number[];
-		embeddingModel?: string;
-	}>,
+    uid: string,
+    cats: Array<{
+        id: string;
+        name: string;
+        nameLower?: string;
+        description?: string | null;
+        embedding?: number[];
+        embeddingModel?: string;
+    }>,
 ): Promise<
-	Array<{ id: string; name: string; nameLower: string; embedding: number[] }>
+    Array<{ id: string; name: string; nameLower: string; embedding: number[] }>
 > {
 	// カテゴリ名＋（オプションで）カテゴリ内リンクのタイトル/説明を材料に埋め込みを作成し保存
 	const toCompute: { idx: number; text: string }[] = [];
@@ -125,40 +126,41 @@ async function ensureCategoryEmbeddings(
 	const expectedModel = config.enableCategoryExampleEmbedding
 		? `${EMBEDDING_MODEL}+cat_examples`
 		: EMBEDDING_MODEL;
-	for (let i = 0; i < cats.length; i++) {
-		const c = cats[i];
-		const needs =
-			!c.embedding ||
-			c.embedding.length === 0 ||
-			c.embeddingModel !== expectedModel;
-		if (!needs) continue;
+    for (let i = 0; i < cats.length; i++) {
+        const c = cats[i];
+        const needs =
+            !c.embedding ||
+            c.embedding.length === 0 ||
+            c.embeddingModel !== expectedModel;
+        if (!needs) continue;
 
-		// 入力テキスト構築
-		let text = c.name || "";
-		if (config.enableCategoryExampleEmbedding) {
-			try {
-				const sample = await linksRepo.list(uid, {
-					categoryId: c.id,
-					sort: "desc",
-					limit: config.categoryExampleSampleSize,
-				});
-				const parts: string[] = [];
-				for (const d of sample) {
-					const data = d.data() as any;
-					if (data?.title) parts.push(String(data.title));
-					if (data?.description) parts.push(String(data.description));
-				}
-				if (parts.length > 0) {
-					const joined = parts.join("\n");
-					const limited = joined.slice(0, config.categoryExampleTextMaxChars);
-					text = `${c.name}\n${limited}`;
-				}
-			} catch (e) {
-				// 読み取り失敗時はカテゴリ名のみ
-			}
-		}
-		toCompute.push({ idx: i, text });
-	}
+        // 入力テキスト構築
+        let text = c.name || "";
+        if (c.description) text += `\n${c.description}`;
+        if (config.enableCategoryExampleEmbedding) {
+            try {
+                const sample = await linksRepo.list(uid, {
+                    categoryId: c.id,
+                    sort: "desc",
+                    limit: config.categoryExampleSampleSize,
+                });
+                const parts: string[] = [];
+                for (const d of sample) {
+                    const data = d.data() as any;
+                    if (data?.title) parts.push(String(data.title));
+                    if (data?.description) parts.push(String(data.description));
+                }
+                if (parts.length > 0) {
+                    const joined = parts.join("\n");
+                    const limited = joined.slice(0, config.categoryExampleTextMaxChars);
+                    text = `${c.name}${c.description ? `\n${c.description}` : ""}\n${limited}`;
+                }
+            } catch (e) {
+                // 読み取り失敗時はカテゴリ名のみ
+            }
+        }
+        toCompute.push({ idx: i, text });
+    }
 	if (toCompute.length > 0) {
 		const embeds = await embedBatch(toCompute.map((t) => t.text));
 		const batch: Array<{
@@ -188,8 +190,8 @@ async function ensureCategoryEmbeddings(
 }
 
 async function llmChooseCategory(
-	text: string,
-	cats: Array<{ id: string; name: string }>,
+    text: string,
+    cats: Array<{ id: string; name: string; description?: string | null }>,
 ): Promise<{ categoryId: string | null; confidence: number }> {
 	// LLMにテキストとカテゴリ一覧を渡し、最適なカテゴリを1つ選ばせる
 	const key = getApiKey();
@@ -199,7 +201,7 @@ async function llmChooseCategory(
 	);
 	const system =
 		"You are a strict classifier. Choose the best category id given the input text. If none fits, return null.";
-	const user = JSON.stringify({ text, categories: cats }, null, 2);
+    const user = JSON.stringify({ text, categories: cats }, null, 2);
 	const started = Date.now();
 	let res: Response | null = null;
 	if (key) {
@@ -281,9 +283,9 @@ async function llmChooseCategory(
 		const gemUrl = `${config.geminiBaseUrl}/models/${encodeURIComponent(
 			config.geminiModel,
 		)}:generateContent?key=${encodeURIComponent(config.geminiApiKey)}`;
-		const prompt =
-			`Given categories (id,name) and text, respond ONLY with compact JSON: {"id": <string|null>, "confidence": <number 0..1>}. Pick one id or null.\n` +
-			JSON.stringify({ text, categories: cats });
+            const prompt =
+                `Given categories (id,name,description) and text, respond ONLY with compact JSON: {"id": <string|null>, "confidence": <number 0..1>}. Pick one id or null.\n` +
+                JSON.stringify({ text, categories: cats });
 		console.log(`[autoCategory] gemini request model=${config.geminiModel}`);
 		const gRes = await fetch(gemUrl, {
 			method: "POST",
@@ -423,16 +425,17 @@ export async function autoAssignCategory(
 	}
 
 	// Prepare categories and ensure embeddings
-	const cats = catDocs.map((d) => {
-		const data = d.data() as any;
-		return {
-			id: d.id,
-			name: data?.name ?? "",
-			nameLower: data?.nameLower ?? (data?.name || "").toLowerCase(),
-			embedding: data?.embedding as number[] | undefined,
-			embeddingModel: data?.embeddingModel as string | undefined,
-		};
-	});
+    const cats = catDocs.map((d) => {
+        const data = d.data() as any;
+        return {
+            id: d.id,
+            name: data?.name ?? "",
+            description: data?.description ?? null,
+            nameLower: data?.nameLower ?? (data?.name || "").toLowerCase(),
+            embedding: data?.embedding as number[] | undefined,
+            embeddingModel: data?.embeddingModel as string | undefined,
+        };
+    });
 	let ensuredCats: Awaited<ReturnType<typeof ensureCategoryEmbeddings>>;
 	try {
 		ensuredCats = await ensureCategoryEmbeddings(uid, cats);
@@ -498,10 +501,10 @@ export async function autoAssignCategory(
 
 	if (llmEnabled()) {
 		// しきい値に届かない場合のみLLMで再判定
-		const llm = await llmChooseCategory(
-			text,
-			cats.map((c) => ({ id: c.id, name: c.name })),
-		);
+        const llm = await llmChooseCategory(
+            text,
+            cats.map((c) => ({ id: c.id, name: c.name, description: c.description })),
+        );
 		const chosen = cats.find((c) => c.id === llm.categoryId)?.id ?? null;
 		if (chosen) {
 			// ログ: LLMで採用

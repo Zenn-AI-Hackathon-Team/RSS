@@ -336,24 +336,96 @@ const createCatRoute = createRoute({
 	},
 });
 const createCatHandler: RouteHandler<typeof createCatRoute> = async (c) => {
-	try {
-		const uid = await requireUid(c.req.header("authorization") ?? undefined);
-		const body = (await c.req.json()) as { name: string };
-		try {
-			const created = await catUC.createCategory(uid, body.name);
-			return c.json(created, 201);
-		} catch (err: unknown) {
-			if (err instanceof Error && err.message === "ALREADY_EXISTS") {
-				return c.json(
-					{ code: "ALREADY_EXISTS", message: "Category name already exists" },
-					409,
-				);
-			}
-			throw err;
-		}
-	} catch {
-		return c.json({ code: "UNAUTHORIZED", message: "Invalid token" }, 401);
-	}
+    try {
+        const uid = await requireUid(c.req.header("authorization") ?? undefined);
+        const body = (await c.req.json()) as { name: string; description?: string | null };
+        try {
+            const created = await catUC.createCategory(uid, body.name, body.description ?? null);
+            return c.json(created, 201);
+        } catch (err: unknown) {
+            if (err instanceof Error && err.message === "ALREADY_EXISTS") {
+                return c.json(
+                    { code: "ALREADY_EXISTS", message: "Category name already exists" },
+                    409,
+                );
+            }
+            throw err;
+        }
+    } catch {
+        return c.json({ code: "UNAUTHORIZED", message: "Invalid token" }, 401);
+    }
+};
+
+// update category name
+const updateCatRoute = createRoute({
+    method: "patch",
+    path: "/categories/{id}",
+    summary: "カテゴリ名変更",
+    description: "カテゴリ名を更新します。重複名はエラーになります。",
+    request: {
+        params: z.object({ id: z.string().describe("カテゴリID") }),
+        body: { required: true, content: { "application/json": { schema: CategoryCreateBody } } },
+    },
+    security: [{ bearerAuth: [] }],
+    responses: {
+        200: { description: "更新後のカテゴリ", content: { "application/json": { schema: Category } } },
+        401: { description: "認証エラー", content: { "application/json": { schema: ErrorRes } } },
+        404: { description: "存在しない", content: { "application/json": { schema: ErrorRes } } },
+        409: { description: "重複カテゴリ名", content: { "application/json": { schema: ErrorRes } } },
+    },
+});
+const updateCatHandler: RouteHandler<typeof updateCatRoute> = async (c) => {
+    try {
+        const uid = await requireUid(c.req.header("authorization") ?? undefined);
+        const { id } = c.req.valid("param");
+        const body = (await c.req.json()) as { name: string; description?: string | null };
+        try {
+            const updated = await catUC.updateCategoryName(uid, id, body.name, body.description ?? null);
+            return c.json({ id: updated.id, name: updated.name, description: updated.description }, 200);
+        } catch (err: unknown) {
+            if (err instanceof Error && err.message === "CATEGORY_NOT_FOUND") {
+                return c.json({ code: "NOT_FOUND", message: "Category not found" }, 404);
+            }
+            if (err instanceof Error && err.message === "ALREADY_EXISTS") {
+                return c.json({ code: "ALREADY_EXISTS", message: "Category name already exists" }, 409);
+            }
+            throw err;
+        }
+    } catch {
+        return c.json({ code: "UNAUTHORIZED", message: "Invalid token" }, 401);
+    }
+};
+
+// delete category
+const deleteCatRoute = createRoute({
+    method: "delete",
+    path: "/categories/{id}",
+    summary: "カテゴリ削除",
+    description: "カテゴリを削除します。カテゴリ内のリンクは Inbox に移動します。",
+    request: { params: z.object({ id: z.string().describe("カテゴリID") }) },
+    security: [{ bearerAuth: [] }],
+    responses: {
+        204: { description: "削除成功" },
+        401: { description: "認証エラー", content: { "application/json": { schema: ErrorRes } } },
+        404: { description: "存在しない", content: { "application/json": { schema: ErrorRes } } },
+    },
+});
+const deleteCatHandler: RouteHandler<typeof deleteCatRoute> = async (c) => {
+    try {
+        const uid = await requireUid(c.req.header("authorization") ?? undefined);
+        const { id } = c.req.valid("param");
+        try {
+            await catUC.deleteCategory(uid, id);
+            return c.body(null, 204);
+        } catch (err: unknown) {
+            if (err instanceof Error && err.message === "CATEGORY_NOT_FOUND") {
+                return c.json({ code: "NOT_FOUND", message: "Category not found" }, 404);
+            }
+            throw err;
+        }
+    } catch {
+        return c.json({ code: "UNAUTHORIZED", message: "Invalid token" }, 401);
+    }
 };
 
 // search
@@ -400,6 +472,8 @@ export const api = new OpenAPIHono()
 	.openapi(moveRoute, moveHandler)
 	.openapi(listCatsRoute, listCatsHandler)
 	.openapi(createCatRoute, createCatHandler)
+	.openapi(updateCatRoute, updateCatHandler)
+	.openapi(deleteCatRoute, deleteCatHandler)
 	.openapi(searchRoute, searchHandler);
 
 export default api;

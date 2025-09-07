@@ -122,6 +122,26 @@ export async function searchByTitlePrefix(
 	return snap.docs;
 }
 
+export async function moveAllFromCategoryToInbox(uid: string, categoryId: string) {
+    // 指定カテゴリの全リンクを Inbox(null) へ移動（バッチ更新）
+    const linksRef = col(uid);
+    const snap = await linksRef.where("categoryId", "==", categoryId).get();
+    if (snap.empty) return 0;
+    let updated = 0;
+    const batchSize = 400; // 500未満で安全側
+    for (let i = 0; i < snap.docs.length; i += batchSize) {
+        const chunk = snap.docs.slice(i, i + batchSize);
+        const batch = db.batch();
+        for (const doc of chunk) {
+            batch.update(doc.ref, { categoryId: null, updatedAt: serverTimestamp() });
+            updated++;
+        }
+        await batch.commit();
+    }
+    return updated;
+}
+
+
 export async function countByCategoryId(
 	uid: string,
 	categoryId: string | null,

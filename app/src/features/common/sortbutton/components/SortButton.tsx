@@ -29,20 +29,20 @@ const SortButton: React.FC<SortProps> = ({ sortBy, onSortChange }) => {
 			<DropdownMenu>
 				<DropdownMenuTrigger asChild>
 					<Button
-						variant="outline"
-						className="bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700 hover:text-white"
+						variant="default" // variantをoutlineからdefaultに
+						className="flex items-center bg-[#7268EC] text-white hover:bg-[#5a4ee0] focus:ring-2 focus:ring-offset-2 focus:ring-[#7268EC] transition-colors"
 					>
 						<ChevronDown className="w-4 h-4 mr-2" />
 						{currentSortLabel}
 					</Button>
 				</DropdownMenuTrigger>
-				<DropdownMenuContent className="bg-gray-800 border-gray-700">
+				<DropdownMenuContent className="bg-[#7268EC] border-[#5a4ee0] text-white w-48">
 					{sortOptions.map((option) => (
 						<DropdownMenuItem
 							key={option.value}
 							onClick={() => onSortChange(option.value)}
-							className={`text-gray-300 hover:bg-gray-700 hover:text-white cursor-pointer ${
-								sortBy === option.value ? "bg-gray-700 text-white" : ""
+							className={`cursor-pointer focus:bg-[#5a4ee0] focus:text-white ${
+								sortBy === option.value ? "bg-[#5a4ee0]" : ""
 							}`}
 						>
 							{option.label}

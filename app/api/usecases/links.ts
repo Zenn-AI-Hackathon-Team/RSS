@@ -144,12 +144,52 @@ export async function moveCategory(
 }
 
 export async function searchLinks(
-	uid: string,
-	q: string,
-	limit = 20,
-	cursor?: string,
+    uid: string,
+    q: string,
+    limit = 20,
+    cursor?: string,
 ) {
-	// タイトルの前方一致検索（簡易検索）
-	const docs = await linksRepo.searchByTitlePrefix(uid, q, limit, cursor);
-	return docs.map((d) => toLinkDTO(d.id, d.data() as LinkDoc));
+	// まずは既存のタイトル前方一致
+	const results: Map<string, LinkDoc & { id: string }> = new Map();
+	const pushDocs = (docs: FirebaseFirestore.QueryDocumentSnapshot[]) => {
+		for (const d of docs) {
+			if (!results.has(d.id)) results.set(d.id, { id: d.id, ...(d.data() as LinkDoc) });
+		}
+	};
+
+	const primary = await linksRepo.searchByTitlePrefix(uid, q, limit, cursor);
+	pushDocs(primary);
+
+	// カテゴリ名マッチ（前方一致/部分一致）: 一致したカテゴリの最新リンクを混ぜる
+	try {
+		const cats = await categoriesRepo.list(uid);
+		const qLower = q.trim().toLowerCase();
+		const matched = cats
+			.map((d) => ({ id: d.id, ...(d.data() as any) }))
+			.filter((c) => typeof c.nameLower === "string" && c.nameLower.includes(qLower))
+			.slice(0, 5); // 多すぎないよう上限
+		// 1カテゴリあたり数件だけ取得
+		const perCat = Math.max(3, Math.floor((limit - results.size) / Math.max(1, matched.length)));
+		for (const c of matched) {
+			if (results.size >= limit) break;
+			const docs = await linksRepo.list(uid, { categoryId: c.id, sort: "desc", limit: perCat });
+			pushDocs(docs);
+		}
+	} catch {}
+
+	// まだ少ない場合はフォールバック（低コスト想定）: クライアントと同じ単純部分一致
+	if (results.size < limit) {
+		try {
+			const lower = q.trim().toLowerCase();
+			const all = await linksRepo.listAll(uid);
+			for (const d of all) {
+				if (results.size >= limit) break;
+				const data = d.data() as LinkDoc;
+				const text = `${data.title ?? ""} ${data.description ?? ""} ${data.url ?? ""}`.toLowerCase();
+				if (text.includes(lower)) pushDocs([d]);
+			}
+		} catch {}
+	}
+
+	return Array.from(results.values()).slice(0, limit).map((x) => toLinkDTO(x.id, x as unknown as LinkDoc));
 }
